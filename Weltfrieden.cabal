@@ -1,0 +1,44 @@
+name:                Weltfrieden
+-- The package version.  See the Haskell package versioning policy (PVP)
+-- for standards guiding when and how versions should be incremented.
+-- http://www.haskell.org/haskellwiki/Package_versioning_policy
+-- PVP summary:      +-+------- breaking API changes
+--                   | | +----- non-breaking API additions
+--                   | | | +--- code changes with no API change
+version:             0.0.0.0
+synopsis:            Tidal interface to graphical display
+homepage:            https://github.com/lennart/Weltfrieden
+license-file:        LICENSE
+author:              Lennart Melzer
+maintainer:          lennart@melzer.it
+
+-- A copyright notice.
+-- copyright:
+
+category:            Graphics
+
+build-type:          Simple
+
+extra-source-files:  README.md
+
+-- Constraint on the version of Cabal needed to build this package.
+cabal-version:       >=1.10
+
+
+library
+  -- Modules exported by the library.
+  exposed-modules:   Graphics.Weltfrieden.Context
+
+
+  -- Modules included in this library but not exported.
+  other-modules:
+                     Graphics.Weltfrieden.Params
+                     Graphics.Weltfrieden.Shader
+                     Graphics.Weltfrieden.Text
+
+
+  -- LANGUAGE extensions used by modules in this package.
+  -- other-extensions:
+  build-depends:       base >=4.7 && <4.9, tidal, hosc, containers
+
+  default-language:    Haskell2010
