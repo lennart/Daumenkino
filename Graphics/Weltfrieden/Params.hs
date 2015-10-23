@@ -58,3 +58,7 @@ size_p = F "size" (Just 1)
 blend :: Pattern String -> OscPattern
 blend = make' string blend_p
 blend_p = S "blend" (Just "x")
+
+depth :: Pattern Int -> OscPattern
+depth = make' int32 depth_p
+depth_p = I "depth" (Just 0)

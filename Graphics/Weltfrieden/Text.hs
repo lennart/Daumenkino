@@ -22,7 +22,8 @@ textShape = OscShape {
     w_p,
     size_p,
     speed_p,
-    blend_p
+    blend_p,
+    depth_p
     ],
   cpsStamp = True,
   timestamp = MessageStamp,
