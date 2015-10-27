@@ -13,11 +13,11 @@ shader_p = S "shader" Nothing
 
 txt :: Pattern String -> OscPattern
 txt = make' string txt_p
-txt_p = S "txt" Nothing
+txt_p = S "txt" (Just "")
 
 dur :: Pattern Double -> OscPattern
 dur = make' float dur_p
-dur_p = F "dur" (Just 0.25)
+dur_p = F "dur" (Just 1)
 
 red :: Pattern Double -> OscPattern
 red = make' float red_p
@@ -62,3 +62,7 @@ blend_p = S "blend" (Just "x")
 level :: Pattern Int -> OscPattern
 level = make' int32 level_p
 level_p = I "level" (Just 0)
+
+fontsize :: Pattern Double -> OscPattern
+fontsize = make' float fontsize_p
+fontsize_p = F "fontsize" (Just 0)

@@ -23,7 +23,9 @@ shaderShape = OscShape {
     size_p,
     speed_p,
     blend_p,
-    level_p
+    level_p,
+    txt_p,
+    fontsize_p
     ],
   cpsStamp = True,
   timestamp = MessageStamp,
