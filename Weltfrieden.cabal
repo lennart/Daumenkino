@@ -28,6 +28,7 @@ cabal-version:       >=1.10
 library
   -- Modules exported by the library.
   exposed-modules:   Graphics.Weltfrieden.Context
+                     Graphics.Weltfrieden.Colors
 
 
   -- Modules included in this library but not exported.
@@ -39,6 +40,6 @@ library
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
-  build-depends:       base >=4.7 && <4.9, tidal, hosc, containers
+  build-depends:       base >=4.7 && <4.9, tidal, hosc, containers, colour
 
   default-language:    Haskell2010

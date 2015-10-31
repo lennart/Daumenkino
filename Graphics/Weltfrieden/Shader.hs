@@ -3,6 +3,10 @@ module Graphics.Weltfrieden.Shader where
 import Sound.Tidal.Transition
 import Sound.Tidal.Stream
 import Sound.Tidal.Params (speed_p)
+import Sound.Tidal.Parse (p)
+import Sound.Tidal.Pattern (Pattern)
+
+import Data.Colour.SRGB
 
 import Graphics.Weltfrieden.Params
 
@@ -38,3 +42,13 @@ shaderShape = OscShape {
 shaderState = state "127.0.0.1" 7772 shaderShape
 shaderSetters getNow = do ss <- shaderState
                           return (setter ss, transition getNow ss)
+
+color' :: String -> (Double, Double, Double)
+color' s =
+  let c = toSRGB $ sRGB24read s
+  in (channelRed c, channelGreen c, channelBlue c)
+
+color :: String -> OscPattern
+color s =
+  let (r,g,b) = color' s
+  in (red (p $ show r) |+| blue (p $ show g) |+| green (p $ show b))

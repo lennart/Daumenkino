@@ -20,7 +20,7 @@
   (tidal-send-string "(s1, st1) <- shaderSetters getNow")
 
   (tidal-send-string "let bps x = cps (x/2)")
-  (tidal-send-string "let hush = mapM_ ($ silence) [d1,d2,d3,d4,d5,d6,d7,d8,d9,d10]")
+  (tidal-send-string "let hush = mapM_ ($ silence) [s1,d1,d2]")
   (tidal-send-string "let solo = (>>) hush")
   (tidal-send-string ":set prompt \"tidal> \"")
 )
