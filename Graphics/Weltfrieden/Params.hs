@@ -37,11 +37,11 @@ alpha_p = F "alpha" (Just 1)
 
 x :: Pattern Double -> OscPattern
 x = make' float x_p
-x_p = F "x" (Just 0)
+x_p = F "x" (Just 0.5)
 
 y :: Pattern Double -> OscPattern
 y = make' float y_p
-y_p = F "y" (Just 0)
+y_p = F "y" (Just 0.5)
 
 z :: Pattern Double -> OscPattern
 z = make' float z_p
