@@ -29,6 +29,7 @@ library
   -- Modules exported by the library.
   exposed-modules:   Graphics.Weltfrieden.Context
                      Graphics.Weltfrieden.Colors
+                     Graphics.Weltfrieden.XKCD
 
 
   -- Modules included in this library but not exported.

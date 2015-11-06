@@ -20,7 +20,6 @@ textShape = OscShape {
     y_p,
     z_p,
     w_p,
-    size_p,
     speed_p,
     blend_p,
     level_p

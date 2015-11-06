@@ -51,9 +51,13 @@ w :: Pattern Double -> OscPattern
 w = make' float w_p
 w_p = F "w" (Just 1)
 
-size :: Pattern Double -> OscPattern
-size = make' float size_p
-size_p = F "size" (Just 1)
+width :: Pattern Double -> OscPattern
+width = make' float width_p
+width_p = F "width" (Just 1)
+
+height :: Pattern Double -> OscPattern
+height = make' float height_p
+height_p = F "height" (Just 1)
 
 blend :: Pattern String -> OscPattern
 blend = make' string blend_p
@@ -66,3 +70,19 @@ level_p = I "level" (Just 0)
 fontsize :: Pattern Double -> OscPattern
 fontsize = make' float fontsize_p
 fontsize_p = F "fontsize" (Just 0)
+
+char :: Pattern Int -> OscPattern
+char = make' int32 char_p
+char_p = I "char" (Just (-1))
+
+rot_x :: Pattern Int -> OscPattern
+rot_x = make' float rot_x_p
+rot_x_p = F "rot_x" (Just 0)
+
+rot_y :: Pattern Int -> OscPattern
+rot_y = make' float rot_y_p
+rot_y_p = F "rot_y" (Just 0)
+
+rot_z :: Pattern Int -> OscPattern
+rot_z = make' float rot_z_p
+rot_z_p = F "rot_z" (Just 0)
