@@ -59,9 +59,17 @@ height :: Pattern Double -> OscPattern
 height = make' float height_p
 height_p = F "height" (Just 1)
 
+srcblend :: Pattern String -> OscPattern
+srcblend = make' string srcblend_p
+srcblend_p = S "srcblend" (Just "a")
+
 blend :: Pattern String -> OscPattern
 blend = make' string blend_p
 blend_p = S "blend" (Just "x")
+
+blendeq :: Pattern String -> OscPattern
+blendeq = make' string blendeq_p
+blendeq_p = S "blendeq"  (Just "a")
 
 level :: Pattern Int -> OscPattern
 level = make' int32 level_p
@@ -75,14 +83,26 @@ char :: Pattern Int -> OscPattern
 char = make' int32 char_p
 char_p = I "char" (Just (-1))
 
-rot_x :: Pattern Int -> OscPattern
+rot_x :: Pattern Double -> OscPattern
 rot_x = make' float rot_x_p
 rot_x_p = F "rot_x" (Just 0)
 
-rot_y :: Pattern Int -> OscPattern
+rot_y :: Pattern Double -> OscPattern
 rot_y = make' float rot_y_p
 rot_y_p = F "rot_y" (Just 0)
 
-rot_z :: Pattern Int -> OscPattern
+rot_z :: Pattern Double -> OscPattern
 rot_z = make' float rot_z_p
 rot_z_p = F "rot_z" (Just 0)
+
+origin_x :: Pattern Double -> OscPattern
+origin_x = make' float origin_x_p
+origin_x_p = F "origin_x" (Just 0)
+
+origin_y :: Pattern Double -> OscPattern
+origin_y = make' float origin_y_p
+origin_y_p = F "origin_y" (Just 0)
+
+origin_z :: Pattern Double -> OscPattern
+origin_z = make' float origin_z_p
+origin_z_p = F "origin_z" (Just 0)

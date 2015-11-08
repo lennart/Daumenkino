@@ -18,9 +18,14 @@
   (tidal-send-string "(d1,t1) <- dirtSetters getNow")
   (tidal-send-string "(d2,t2) <- dirtSetters getNow")
   (tidal-send-string "(s1, st1) <- shaderSetters getNow")
+  (tidal-send-string "(s2, st2) <- shaderSetters getNow")
+  (tidal-send-string "(s3, st3) <- shaderSetters getNow")
+  (tidal-send-string "(s4, st4) <- shaderSetters getNow")
+  (tidal-send-string "(s5, st5) <- shaderSetters getNow")
+
 
   (tidal-send-string "let bps x = cps (x/2)")
-  (tidal-send-string "let hush = mapM_ ($ silence) [s1,d1,d2]")
+  (tidal-send-string "let hush = mapM_ ($ silence) [s1,s2,s3,s4,s5,d1,d2]")
   (tidal-send-string "let solo = (>>) hush")
   (tidal-send-string ":set prompt \"tidal> \"")
 )

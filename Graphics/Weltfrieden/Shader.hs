@@ -29,10 +29,15 @@ shaderShape = OscShape {
     rot_x_p,
     rot_y_p,
     rot_z_p,
+    origin_x_p,
+    origin_y_p,
+    origin_z_p,
     width_p,
     height_p,
     speed_p,
+    srcblend_p,
     blend_p,
+    blendeq_p,
     level_p,
     txt_p,
     fontsize_p,
@@ -84,8 +89,6 @@ color' s =
 
 color :: Pattern ColourD -> OscPattern
 color s = red (channelRed.toSRGB <$> s) |+| green (channelGreen.toSRGB <$> s) |+| blue (channelBlue.toSRGB <$> s)
-  -- let (r,g,b) = color' s
-  -- in (red (p $ show r) |+| blue (p $ show g) |+| green (p $ show b))
 
-
--- (channelBlue.toSRGB) <$> ("beige #fafa99 #ffabab" :: Pattern ColourD)
+size :: Pattern Double -> OscPattern
+size s = width s # height s
