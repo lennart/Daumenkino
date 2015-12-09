@@ -1,4 +1,4 @@
-module Graphics.Weltfrieden.Params where
+module Graphics.Daumenkino.Params where
 
 import Sound.Tidal.Params (make')
 import Sound.Tidal.Stream
@@ -10,10 +10,6 @@ import Data.Map as Map
 shader :: Pattern String -> OscPattern
 shader = make' string shader_p
 shader_p = S "shader" Nothing
-
-txt :: Pattern String -> OscPattern
-txt = make' string txt_p
-txt_p = S "txt" (Just "")
 
 dur :: Pattern Double -> OscPattern
 dur = make' float dur_p
@@ -74,14 +70,6 @@ blendeq_p = S "blendeq"  (Just "a")
 level :: Pattern Int -> OscPattern
 level = make' int32 level_p
 level_p = I "level" (Just 0)
-
-fontsize :: Pattern Double -> OscPattern
-fontsize = make' float fontsize_p
-fontsize_p = F "fontsize" (Just 0)
-
-char :: Pattern Int -> OscPattern
-char = make' int32 char_p
-char_p = I "char" (Just (-1))
 
 rot_x :: Pattern Double -> OscPattern
 rot_x = make' float rot_x_p

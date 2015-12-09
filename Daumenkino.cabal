@@ -1,4 +1,4 @@
-name:                Weltfrieden
+name:                Daumenkino
 -- The package version.  See the Haskell package versioning policy (PVP)
 -- for standards guiding when and how versions should be incremented.
 -- http://www.haskell.org/haskellwiki/Package_versioning_policy
@@ -7,7 +7,7 @@ name:                Weltfrieden
 --                   | | | +--- code changes with no API change
 version:             0.0.0.0
 synopsis:            Tidal interface to graphical display
-homepage:            https://github.com/lennart/Weltfrieden
+homepage:            https://github.com/lennart/Daumenkino
 license-file:        LICENSE
 author:              Lennart Melzer
 maintainer:          lennart@melzer.it
@@ -27,16 +27,15 @@ cabal-version:       >=1.10
 
 library
   -- Modules exported by the library.
-  exposed-modules:   Graphics.Weltfrieden.Context
-                     Graphics.Weltfrieden.Colors
-                     Graphics.Weltfrieden.XKCD
+  exposed-modules:   Graphics.Daumenkino.Context
+                     Graphics.Daumenkino.Colors
+                     Graphics.Daumenkino.XKCD
 
 
   -- Modules included in this library but not exported.
   other-modules:
-                     Graphics.Weltfrieden.Params
-                     Graphics.Weltfrieden.Shader
-                     Graphics.Weltfrieden.Text
+                     Graphics.Daumenkino.Params
+                     Graphics.Daumenkino.Shader
 
 
   -- LANGUAGE extensions used by modules in this package.

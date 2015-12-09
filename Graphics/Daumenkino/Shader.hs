@@ -1,5 +1,4 @@
-module Graphics.Weltfrieden.Shader where
-
+module Graphics.Daumenkino.Shader where
 
 import Data.Ratio
 import Sound.Tidal.Transition
@@ -10,7 +9,7 @@ import Sound.Tidal.Pattern (Pattern, stack, zoom, density, sliceArc, slow, (<~))
 
 import Data.Colour.SRGB
 
-import Graphics.Weltfrieden.Params
+import Graphics.Daumenkino.Params
 
 shaderShape :: OscShape
 shaderShape = OscShape {
@@ -38,10 +37,7 @@ shaderShape = OscShape {
     srcblend_p,
     blend_p,
     blendeq_p,
-    level_p,
-    txt_p,
-    fontsize_p,
-    char_p
+    level_p
     ],
   cpsStamp = True,
   timestamp = MessageStamp,
@@ -54,33 +50,6 @@ shaderShape = OscShape {
 shaderState = state "127.0.0.1" 7772 shaderShape
 shaderSetters getNow = do ss <- shaderState
                           return (setter ss, transition getNow ss)
-
-
-
-
--- zoomer :: Ratio Integer -> Ratio Integer -> Pattern a -> Pattern a
--- zoomer i n = slow n . ((i'/n') <~) . sliceArc ( (i'/n'), (i'+1/n') )
---   where i' = i
---         n' = n
-
---layout :: OscPattern -> (OscPattern -> OscPattern) -> Int -> OscPattern -> OscPattern
--- place num g p1 p2 i =
---   zoomer i num $ (p2 (density num $ p1)) -- (square g i num))
---     where
---       square pat index count = pat (divider index count) # sizer (index) (count)
---       divider index count = (density num $ p $ show $ realToFrac ( (index/count) + (1/(count*2) ) ) )
---       sizer index count = size (density num $ p $ show $ realToFrac ( 1 / ( count + (1/count*count) ) ) )
-
--- layout p'' g num p' = stack (map (place num g p' p'') [0..(num-1)])
-
-
--- row' p'' num p' = layout p'' (x) num p'
-
--- col' p'' num p' = layout p'' (y) num p'
-
--- grid' p'' size = col' p'' size . row' p'' size
-
-
 
 color' :: String -> (Double, Double, Double)
 color' s =

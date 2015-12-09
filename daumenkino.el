@@ -1,8 +1,8 @@
-(defun weltfrieden-start-haskell ()
+(defun daumenkino-start-haskell ()
   "Start haskell."
   (interactive)
   (if (comint-check-proc tidal-buffer)
-      (error "A tidal/weltfrieden process is already running")
+      (error "A tidal/daumenkino process is already running")
     (apply
      'make-comint
      "tidal"
@@ -12,7 +12,7 @@
     (tidal-see-output))
   (tidal-send-string ":set prompt \"\"")
   (tidal-send-string "import Sound.Tidal.Context")
-  (tidal-send-string "import Graphics.Weltfrieden.Context")
+  (tidal-send-string "import Graphics.Daumenkino.Context")
   (tidal-send-string ":set prompt \"\"")
   (tidal-send-string "(cps, getNow) <- cpsUtils")
   (tidal-send-string "(d1,t1) <- dirtSetters getNow")
