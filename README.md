@@ -21,7 +21,7 @@ cd Daumenkino
 cabal install
 ```
 
-Place `daumenkino.el` in an emacs load-path and start a session in a `.tidal` file via:
+Place `daumenkino.el` in an emacs load-path, require the daumenkino package and start a session in a `.tidal` file via:
 
 `M-x daumenkino-start-haskell`
 
