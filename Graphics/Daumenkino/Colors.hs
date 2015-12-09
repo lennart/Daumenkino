@@ -1,4 +1,4 @@
-module Graphics.Weltfrieden.Colors (colorPairs, colorAt, colorForName, syllableCountForName) where
+module Graphics.Daumenkino.Colors (colorPairs, colorAt, colorForName, syllableCountForName) where
 
 import Data.Colour.SRGB
 import Sound.Tidal.Parse (p, ColourD)
