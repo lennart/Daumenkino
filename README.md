@@ -41,12 +41,19 @@ Available shaders are:
 
 other shader names will be read as imagefile names similar to how [Dirt](https://github.com/tidalcycle/Dirt) does.
 
-Available params are:
+These params accept float patterns:
 
-* width
-* height
-* x
-* y
-* speed
-* ...
+* `dur` - duration the shader is shown
+* `width`, `height` (and also `size` for equal width and height)
+* `x`, `y` - positioning
+* `speed`
+* `red`, `green`, `blue`
+* `alpha` - transparency
+* `rot_x` - rotation around x axis
+* `origin_x`, `origin_y` - origin for rotation, to rotate around a certain point
 
+Special params which accept different patterns:
+
+* `color` - accepts hex colors like `#ff0099`
+* `blend` - blendmode accepts the following values:
+    * `x`,`X`,`y`,`Y`,`a`,`A`,`c`,`C`,`l`,`t` (TODO: better mnemonics)
