@@ -56,4 +56,14 @@ Special params which accept different patterns:
 
 * `color` - accepts hex colors like `#ff0099`
 * `blend` - blendmode accepts the following values:
-    * `x`,`X`,`y`,`Y`,`a`,`A`,`c`,`C`,`l`,`t` (TODO: better mnemonics)
+  * `c` SRC_COLOR
+  * `a` SRC_ALPHA
+  * `C` DST_COLOR
+  * `A` DST_ALPHA
+  * `l` CONSTANT_ALPHA
+  * `t` CONSTANT_COLOR
+  * `s` SRC_SATURATE_ALPHA
+  * `x` ONE_MINUS_SRC_ALPHA (default)
+  * `y` ONE_MINUS_SRC_COLOR
+  * `X` ONE_MINUS_DST_ALPHA
+  * `Y` ONE_MINUS_DST_COLOR
