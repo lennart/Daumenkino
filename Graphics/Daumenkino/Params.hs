@@ -5,10 +5,6 @@ import Sound.Tidal.Stream
 import Sound.Tidal.Pattern
 import qualified Data.Map as Map
 
-shader :: Pattern String -> OscPattern
-shader = make' string shader_p
-shader_p = S "shader" Nothing
-
 (shader, shader_p) = pS "shader" Nothing
 
 (red, red_p) = pF "red" (Just 1)

@@ -3,7 +3,8 @@ module Graphics.Daumenkino.Shader where
 import Data.Ratio
 import Sound.Tidal.Transition
 import Sound.Tidal.Stream
-import Sound.Tidal.Params (speed_p)
+import Sound.Tidal.OscStream
+import Sound.Tidal.Params (speed_p, dur_p)
 import Sound.Tidal.Parse (p,ColourD)
 import Sound.Tidal.Pattern (Pattern, stack, zoom, density, sliceArc, slow, (<~))
 
@@ -11,9 +12,9 @@ import Data.Colour.SRGB
 
 import Graphics.Daumenkino.Params
 
-shaderShape :: OscShape
-shaderShape = OscShape {
-  path="/shader",
+shaderShape :: Shape
+shaderShape = Shape {
+
   params = [
     dur_p,
     shader_p,
@@ -40,24 +41,39 @@ shaderShape = OscShape {
     level_p
     ],
   cpsStamp = True,
-  timestamp = MessageStamp,
-  latency = 0.04,
+  latency = 0.04
+  }
+
+
+shaderSlang = OscSlang {
+  path="/shader",
   namedParams = False,
+  timestamp = MessageStamp,    
   preamble = [
              ]
   }
 
-shaderState = state "127.0.0.1" 7772 shaderShape
+
+shaderBackend = do
+  s <- makeConnection "127.0.0.1" 7772 shaderSlang
+  return $ Backend s (\_ _ _ -> return ())
+
+shaderState = do
+  backend <- shaderBackend
+  Sound.Tidal.Stream.state backend shaderShape
+
 shaderSetters getNow = do ss <- shaderState
                           return (setter ss, transition getNow ss)
+
+
 
 color' :: String -> (Double, Double, Double)
 color' s =
   let c = toSRGB $ sRGB24read s
   in (channelRed c, channelGreen c, channelBlue c)
 
-color :: Pattern ColourD -> OscPattern
+color :: Pattern ColourD -> ParamPattern
 color s = red (channelRed.toSRGB <$> s) |+| green (channelGreen.toSRGB <$> s) |+| blue (channelBlue.toSRGB <$> s)
 
-size :: Pattern Double -> OscPattern
-size s = width s # height s
+area :: Pattern Double -> ParamPattern
+area s = width s # height s
