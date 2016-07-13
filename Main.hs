@@ -2,13 +2,18 @@ module Main (main) where
 
 --------------------------------------------------------------------------------
 
-import Control.Concurrent.STM    (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue)
-import Control.Monad             (unless, when, void)
+import Control.Concurrent.STM    (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue, tryPeekTQueue, readTQueue)
+import Control.Concurrent
+import Control.Monad             (unless, when, void, forever)
 import Control.Monad.RWS.Strict  (RWST, ask, asks, evalRWST, get, liftIO, modify, put)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Data.List                 (intercalate)
-import Data.Maybe                (catMaybes)
+import Data.Maybe                (catMaybes, fromMaybe, fromJust)
 import Text.PrettyPrint
+
+import Data.Time.Clock
+import Data.Time.Clock.POSIX
+import Sound.OSC.FD
 
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
@@ -19,6 +24,7 @@ import Gear (makeGear)
 
 data Env = Env
     { envEventsChan    :: TQueue Event
+    , envOscEvents     :: TQueue Message
     , envWindow        :: !GLFW.Window
     , envGear1         :: !GL.DisplayList
     , envGear2         :: !GL.DisplayList
@@ -66,13 +72,24 @@ data Event =
 
 --------------------------------------------------------------------------------
 
+queueOSC :: TQueue Message -> Maybe Message -> IO ()
+queueOSC q = maybe (return ()) (atomically . writeTQueue q)
+
+runOSCServer :: TQueue Message -> IO ()
+runOSCServer q = do
+  _ <- forkIO $ withTransport s (\fd -> forever (recvMessage fd >>= queueOSC q))
+  return ()
+    where
+      s = udpServer "127.0.0.1" 12345
+
 main :: IO ()
 main = do
     let width  = 640
         height = 480
 
     eventsChan <- newTQueueIO :: IO (TQueue Event)
-
+    oscEvents <- newTQueueIO :: IO (TQueue Message)
+    runOSCServer oscEvents
     withWindow width height "GLFW-b-demo" $ \win -> do
         GLFW.setErrorCallback               $ Just $ errorCallback           eventsChan
         GLFW.setWindowPosCallback       win $ Just $ windowPosCallback       eventsChan
@@ -110,6 +127,7 @@ main = do
             zDist         = zDistClosest + ((zDistFarthest - zDistClosest) / 2)
             env = Env
               { envEventsChan    = eventsChan
+              , envOscEvents     = oscEvents
               , envWindow        = win
               , envGear1         = gear1
               , envGear2         = gear2
@@ -212,28 +230,28 @@ run = do
         GL.flush  -- not necessary, but someone recommended it
         GLFW.pollEvents
     processEvents
-
-    state <- get
-    if stateDragging state
-      then do
-          let sodx  = stateDragStartX      state
-              sody  = stateDragStartY      state
-              sodxa = stateDragStartXAngle state
-              sodya = stateDragStartYAngle state
-          (x, y) <- liftIO $ GLFW.getCursorPos win
-          let myrot = (x - sodx) / 2
-              mxrot = (y - sody) / 2
-          put $ state
-            { stateXAngle = sodxa + mxrot
-            , stateYAngle = sodya + myrot
-            }
-      else do
-          (kxrot, kyrot) <- liftIO $ getCursorKeyDirections win
-          (jxrot, jyrot) <- liftIO $ getJoystickDirections GLFW.Joystick'1
-          put $ state
-            { stateXAngle = stateXAngle state + (2 * kxrot) + (2 * jxrot)
-            , stateYAngle = stateYAngle state + (2 * kyrot) + (2 * jyrot)
-            }
+    processOscEvents
+--    state <- get
+    -- if stateDragging state
+    --   then do
+    --       let sodx  = stateDragStartX      state
+    --           sody  = stateDragStartY      state
+    --           sodxa = stateDragStartXAngle state
+    --           sodya = stateDragStartYAngle state
+    --       (x, y) <- liftIO $ GLFW.getCursorPos win
+    --       let myrot = (x - sodx) / 2
+    --           mxrot = (y - sody) / 2
+    --       put $ state
+    --         { stateXAngle = sodxa + mxrot
+    --         , stateYAngle = sodya + myrot
+    --         }
+    --   else do
+    --       (kxrot, kyrot) <- liftIO $ getCursorKeyDirections win
+    --       (jxrot, jyrot) <- liftIO $ getJoystickDirections GLFW.Joystick'1
+    --       put $ state
+    --         { stateXAngle = stateXAngle state + (2 * kxrot) + (2 * jxrot)
+    --         , stateYAngle = stateYAngle state + (2 * kyrot) + (2 * jyrot)
+    --         }
 
     mt <- liftIO GLFW.getTime
     modify $ \s -> s
@@ -242,6 +260,49 @@ run = do
 
     q <- liftIO $ GLFW.windowShouldClose win
     unless q run
+
+readTimestamp :: Message -> UTCTime
+readTimestamp m = t
+  where
+    t = posixSecondsToUTCTime frac
+    frac = realToFrac $ fromIntegral sec' + (asusec * fromIntegral usec')
+    sec' = fromJust $ datum_integral sec :: Integer
+    asusec = 0.000001 :: Double
+    usec' = fromJust $ datum_integral usec :: Integer
+    (sec:usec:_) = messageDatum m
+
+processOscEvents :: Demo ()
+processOscEvents = do
+  tc <- asks envOscEvents
+  me <- liftIO $ atomically $ tryPeekTQueue tc
+  case me of
+    Just e -> do      
+      now <- liftIO getCurrentTime
+      case ts >= now of
+        True -> do
+          _ <- liftIO $ atomically $ readTQueue tc
+          processOscEvent e
+          liftIO $ putStrLn $ show e
+          processOscEvents
+        False ->
+          return ()
+        where
+          ts = readTimestamp e
+    Nothing -> return ()
+
+processOscEvent :: Message -> Demo ()
+processOscEvent m = do
+  state <- get
+  modify $ \s -> s
+    { stateXAngle = fromMaybe 0 rotx
+    , stateYAngle = fromMaybe 0 roty
+    }
+
+  where
+     paramsraw = messageDatum m
+     rotx = datum_floating $ paramsraw !! 3
+     roty = datum_floating $ paramsraw !! 4
+  
 
 processEvents :: Demo ()
 processEvents = do
