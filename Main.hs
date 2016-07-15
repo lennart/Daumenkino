@@ -2,24 +2,44 @@ module Main (main) where
 
 --------------------------------------------------------------------------------
 
-import Control.Concurrent.STM    (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue, tryPeekTQueue, readTQueue)
-import Control.Concurrent
-import Control.Monad             (unless, when, void, forever)
-import Control.Monad.RWS.Strict  (RWST, ask, asks, evalRWST, get, liftIO, modify, put)
-import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
-import Data.List                 (intercalate)
-import Data.Maybe                (catMaybes, fromMaybe, fromJust)
-import Text.PrettyPrint
+import           Control.Concurrent.STM (TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue, tryPeekTQueue, readTQueue)
+import           Control.Concurrent
+import           Control.Monad (unless, when, void, forever, join)
+import           Control.Monad.RWS.Strict (RWST, ask, asks, evalRWST, get, liftIO, modify, put)
+import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import           Data.List (intercalate)
+import           Data.Maybe (catMaybes, fromMaybe, fromJust)
+import           Text.PrettyPrint
 
-import Data.Time.Clock
-import Data.Time.Clock.POSIX
-import Sound.OSC.FD
+import           Data.Time.Clock
+import           Data.Time.Clock.POSIX
+import           Sound.OSC.FD
 
 import qualified Graphics.Rendering.OpenGL as GL
-import qualified Graphics.UI.GLFW          as GLFW
+import qualified Graphics.UI.GLFW as GLFW
 
-import Gear (makeGear)
+import qualified Data.Map.Strict as Map
 
+import           Gear (makeGear)
+
+type LifeTime = Maybe Double
+
+type FluxMap = Map.Map String (Map.Map Int Flux)
+type FluxID = (String,Int)
+
+data Flux = Flux {
+  shape :: !GL.DisplayList,
+  posx :: !Double,
+  posy :: !Double,
+  life :: !LifeTime,
+  name :: !String
+  }
+
+data FluxMessage = FluxMessage {
+  fposx :: Double,
+  fposy :: Double,
+  fpath :: FluxID
+                 }
 --------------------------------------------------------------------------------
 
 data Env = Env
@@ -36,6 +56,7 @@ data Env = Env
 data State = State
     { stateWindowWidth     :: !Int
     , stateWindowHeight    :: !Int
+    , stateFluxes          :: !FluxMap
     , stateXAngle          :: !Double
     , stateYAngle          :: !Double
     , stateZAngle          :: !Double
@@ -138,6 +159,7 @@ main = do
             state = State
               { stateWindowWidth     = fbWidth
               , stateWindowHeight    = fbHeight
+              , stateFluxes          = Map.empty
               , stateXAngle          = 0
               , stateYAngle          = 0
               , stateZAngle          = 0
@@ -290,20 +312,78 @@ processOscEvents = do
           ts = readTimestamp e
     Nothing -> return ()
 
-processOscEvent :: Message -> Demo ()
-processOscEvent m = do
-  state <- get
-  modify $ \s -> s
-    { stateXAngle = fromMaybe 0 rotx
-    , stateYAngle = fromMaybe 0 roty
-    }
+safeElemAt :: Int -> [a] -> Maybe a
+safeElemAt i l
+ | i > len = Nothing
+ | i < 0 = Nothing
+ | otherwise = Just $ l !! i
+ where
+   len = length l - 1
 
+{-|
+Change the given FluxMap at FluxID:
+
+if there is a value at FluxID, replace it with the given Something
+
+if there is no value at FluxID, create a map at `fluxname` and store the `flux` at index `idx`
+
+returns the altered FluxMap
+-}
+updateFluxMap :: Flux -> FluxID -> FluxMap -> FluxMap
+updateFluxMap flux (fluxname, idx) fluxmap = fluxmap'
   where
-     paramsraw = messageDatum m
-     rotx = datum_floating $ paramsraw !! 3
-     roty = datum_floating $ paramsraw !! 4
-  
+    fluxesM = Map.lookup fluxname fluxmap
+    fluxes = fromMaybe Map.empty fluxesM
+    fluxes' = Map.alter (const $ Just flux) idx fluxes
+    fluxmap' = Map.alter (const $ Just fluxes') fluxname fluxmap
 
+findFlux :: String -> Int -> FluxMap -> Maybe Flux
+findFlux fluxname idx fluxmap = fluxM
+  where
+    fluxes = Map.lookup fluxname fluxmap
+    fluxM = join $ Map.lookup idx <$> fluxes
+
+fluxAPI :: ASCII
+fluxAPI = ascii ",iifsiff"
+
+toFluxMessage :: Message -> Maybe FluxMessage
+toFluxMessage m = fluxm
+  where
+    datems = messageDatum m
+    d = descriptor datems
+    fluxm = case d == fluxAPI of
+      True ->
+        Just $ FluxMessage posx' posy' (flux,idx)
+        where
+          (_:_:_:dflux:didx:dposx:[dposy]) = datems
+          posx' = fromJust $ datum_floating dposx
+          posy' = fromJust $ datum_floating dposy
+          flux = fromJust $ datum_string dflux
+          idx = fromJust $ datum_integral didx
+      False ->
+        Nothing
+
+processOscEvent :: Message -> Demo ()
+processOscEvent m = maybe (liftIO $ putStrLn "invalid msg received") processFluxMessage fluxmsgM
+  where
+    fluxmsgM = toFluxMessage m
+  
+processFluxMessage :: FluxMessage -> Demo ()
+processFluxMessage FluxMessage{fposx=x,fposy=y,fpath=(fluxname,idx)} = do
+  state <- get
+  let fluxmap = stateFluxes state
+      fluxM = findFlux fluxname idx fluxmap
+  -- create DisplayList if this is a new Flux
+  shape' <- liftIO $ case fluxM of
+    Nothing -> makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)  -- red
+    Just Flux{shape=shape'} -> return shape'
+  -- create a new Flux with updated values
+  let flux = Flux shape' x y (Just 0.5) fluxname
+  put state {
+    -- FIXME: continue with lifetime reduction an removal of _dead_ fluxes, like this, fluxes live forever
+    stateFluxes = updateFluxMap flux (fluxname, idx) fluxmap
+            }
+  
 processEvents :: Demo ()
 processEvents = do
     tc <- asks envEventsChan

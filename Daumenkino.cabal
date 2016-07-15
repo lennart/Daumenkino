@@ -29,7 +29,7 @@ executable             Daumenkino
   main-is:             Main.hs
   other-moduleS:
     Gear
-  build-depends:       base >=4.7 && <5, tidal >=0.8 && <0.9, hosc, containers, colour, GLFW-b, OpenGL, transformers, stm, pretty, mtl
+  build-depends:       base >=4.7 && <5, tidal >=0.8 && <0.9, hosc, containers, colour, GLFW-b, OpenGL, transformers, stm, pretty, mtl, time
   default-language:    Haskell2010                     
 library
   -- Modules exported by the library.
