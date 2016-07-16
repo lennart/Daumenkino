@@ -316,7 +316,7 @@ processOscEvents = do
   case me of
     Just e -> do      
       now <- liftIO getCurrentTime
-      case ts >= now of
+      case ts <= now of
         True -> do
           _ <- liftIO $ atomically $ readTQueue tc
           processOscEvent e
