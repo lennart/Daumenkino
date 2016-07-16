@@ -31,17 +31,21 @@ primSlang = OscSlang {
              ]
   }
 
-primBackend :: IO (Backend a)
-primBackend = do
-  s <- makeConnection "127.0.0.1" 12345 primSlang
+primBackend :: String -> Int -> IO (Backend a)
+primBackend host port = do
+  s <- makeConnection host port primSlang
   return $ Backend s (\_ _ _ -> return ())
 
-primState :: IO (MVar (ParamPattern, [ParamPattern]))
-primState = do
-  backend <- primBackend
+primState :: String -> Int -> IO (MVar (ParamPattern, [ParamPattern]))
+primState host port = do
+  backend <- primBackend host port
   Sound.Tidal.Stream.state backend primShape
 
 primSetters :: IO Time -> IO (ParamPattern -> IO (), (Time -> [ParamPattern] -> ParamPattern) -> ParamPattern -> IO ())
-primSetters getNow = do ss <- primState
+primSetters getNow = do ss <- primState "127.0.0.1" 12345 
                         return (setter ss, transition getNow ss)
 
+
+primSetters' :: String -> Int -> IO Time -> IO (ParamPattern -> IO (), (Time -> [ParamPattern] -> ParamPattern) -> ParamPattern -> IO ())
+primSetters' host port getNow = do ss <- primState host port
+                                   return (setter ss, transition getNow ss)

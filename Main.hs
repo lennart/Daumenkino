@@ -7,6 +7,7 @@ import           Control.Concurrent
 import           Control.Monad (unless, when, void, forever, join)
 import           Control.Monad.RWS.Strict (RWST, ask, asks, evalRWST, get, liftIO, modify, put)
 import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import           Control.Exception
 import           Data.List (intercalate)
 import           Data.Maybe (catMaybes, fromMaybe, fromJust)
 import           Text.PrettyPrint
@@ -17,6 +18,8 @@ import           Sound.OSC.FD
 
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW as GLFW
+
+import           System.Environment (getEnv)
 
 import qualified Data.Map.Strict as Map
 
@@ -93,15 +96,26 @@ data Event =
 
 --------------------------------------------------------------------------------
 
+getEnvDefault :: String -> String -> IO String
+getEnvDefault defValue var = do
+  res <- try . getEnv $ var
+  return $ either (const defValue) id (res :: Either IOException String)
+
+getServerIp :: IO String
+getServerIp = getEnvDefault "127.0.0.1" "DAUMENKINO_IP"
+
+getServerPort :: IO Int
+getServerPort = fmap read (getEnvDefault "23451" "DAUMENKINO_PORT")
+
 queueOSC :: TQueue Message -> Maybe Message -> IO ()
 queueOSC q = maybe (return ()) (atomically . writeTQueue q)
 
-runOSCServer :: TQueue Message -> IO ()
-runOSCServer q = do
+runOSCServer :: String -> Int -> TQueue Message -> IO ()
+runOSCServer host port q = do
   _ <- forkIO $ withTransport s (\fd -> forever (recvMessage fd >>= queueOSC q))
   return ()
     where
-      s = udpServer "127.0.0.1" 12345
+      s = udpServer host port
 
 main :: IO ()
 main = do
@@ -110,7 +124,9 @@ main = do
 
     eventsChan <- newTQueueIO :: IO (TQueue Event)
     oscEvents <- newTQueueIO :: IO (TQueue Message)
-    runOSCServer oscEvents
+    host <- getServerIp
+    port <- getServerPort
+    runOSCServer host port oscEvents
     withWindow width height "GLFW-b-demo" $ \win -> do
         GLFW.setErrorCallback               $ Just $ errorCallback           eventsChan
         GLFW.setWindowPosCallback       win $ Just $ windowPosCallback       eventsChan
