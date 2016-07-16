@@ -328,14 +328,6 @@ processOscEvents = do
           ts = readTimestamp e
     Nothing -> return ()
 
-safeElemAt :: Int -> [a] -> Maybe a
-safeElemAt i l
- | i > len = Nothing
- | i < 0 = Nothing
- | otherwise = Just $ l !! i
- where
-   len = length l - 1
-
 {-|
 Change the given FluxMap at FluxID:
 
