@@ -527,6 +527,8 @@ draw = do
     let gear1 = envGear1 env
         gear2 = envGear2 env
         gear3 = envGear3 env
+        fluxmap = stateFluxes state
+        flatfluxes = concat $ Map.elems $ Map.map Map.elems fluxmap
         xa = stateXAngle state
         ya = stateYAngle state
         za = stateZAngle state
@@ -537,18 +539,26 @@ draw = do
             GL.rotate (realToFrac xa) xunit
             GL.rotate (realToFrac ya) yunit
             GL.rotate (realToFrac za) zunit
-            GL.preservingMatrix $ do
-                GL.translate gear1vec
-                GL.rotate (realToFrac ga) zunit
-                GL.callList gear1
-            GL.preservingMatrix $ do
-                GL.translate gear2vec
-                GL.rotate (-2 * realToFrac ga - 9) zunit
-                GL.callList gear2
-            GL.preservingMatrix $ do
-                GL.translate gear3vec
-                GL.rotate (-2 * realToFrac ga - 25) zunit
-                GL.callList gear3
+            
+            mapM_ (\f -> GL.preservingMatrix $ do
+                      let vec = GL.Vector3 (realToFrac x) (realToFrac y) 0 :: GL.Vector3 GL.GLfloat
+                          x = posx f
+                          y = posy f
+                      GL.translate vec
+                      GL.callList $ shape f
+                     ) flatfluxes
+            -- GL.preservingMatrix $ do
+            --     GL.translate gear1vec
+            --     GL.rotate (realToFrac ga) zunit
+            --     GL.callList gear1
+            -- GL.preservingMatrix $ do
+            --     GL.translate gear2vec
+            --     GL.rotate (-2 * realToFrac ga - 9) zunit
+            --     GL.callList gear2
+            -- GL.preservingMatrix $ do
+            --     GL.translate gear3vec
+            --     GL.rotate (-2 * realToFrac ga - 25) zunit
+            --     GL.callList gear3
       where
         gear1vec = GL.Vector3 (-3)   (-2)  0 :: GL.Vector3 GL.GLfloat
         gear2vec = GL.Vector3   3.1  (-2)  0 :: GL.Vector3 GL.GLfloat
