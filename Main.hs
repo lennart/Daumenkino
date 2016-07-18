@@ -42,6 +42,7 @@ data Flux = Flux {
 data FluxMessage = FluxMessage {
   fposx :: Double,
   fposy :: Double,
+  flife :: Double,
   fpath :: FluxID,
   ftime :: UTCTime
                  }
@@ -323,7 +324,7 @@ processOscEvents = do
         True -> do
           _ <- liftIO $ atomically $ readTQueue tc
           processOscEvent e
-          liftIO $ putStrLn $ show e
+--          liftIO $ putStrLn $ show e
           processOscEvents
         False ->
           return ()
@@ -355,7 +356,7 @@ findFlux fluxname idx fluxmap = fluxM
     fluxM = join $ Map.lookup idx <$> fluxes
 
 fluxAPI :: ASCII
-fluxAPI = ascii ",iifsiff"
+fluxAPI = ascii ",iifsifff"
 
 toFluxMessage :: Message -> Maybe FluxMessage
 toFluxMessage m = fluxm
@@ -364,9 +365,10 @@ toFluxMessage m = fluxm
     d = descriptor datems
     fluxm = case d == fluxAPI of
       True ->
-        Just $ FluxMessage posx' posy' (flux,idx) ts
+        Just $ FluxMessage posx' posy' life' (flux,idx) ts
         where
-          (_:_:_:dflux:didx:dposx:[dposy]) = datems
+          (_:_:_:dflux:didx:dlife:dposx:[dposy]) = datems
+          life' = fromJust $ datum_floating dlife
           posx' = fromJust $ datum_floating dposx
           posy' = fromJust $ datum_floating dposy
           flux = fromJust $ datum_string dflux
@@ -381,7 +383,7 @@ processOscEvent m = maybe (liftIO $ putStrLn "invalid msg received") processFlux
     fluxmsgM = toFluxMessage m
   
 processFluxMessage :: FluxMessage -> Demo ()
-processFluxMessage FluxMessage{fposx=x,fposy=y,fpath=(fluxname,idx),ftime=ts} = do
+processFluxMessage FluxMessage{fposx=x,fposy=y,flife=l,fpath=(fluxname,idx),ftime=ts} = do
   state <- get
   let fluxmap = stateFluxes state
       fluxM = findFlux fluxname idx fluxmap
@@ -390,7 +392,7 @@ processFluxMessage FluxMessage{fposx=x,fposy=y,fpath=(fluxname,idx),ftime=ts} = 
     Nothing -> makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)  -- red
     Just Flux{shape=shape'} -> return shape'
   -- create a new Flux with updated values
-  let flux = Flux shape' x y (Just 0.5) fluxname ts
+  let flux = Flux shape' x y (Just l) fluxname ts
   put state {
     -- FIXME: continue with lifetime reduction an removal of _dead_ fluxes, like this, fluxes live forever
     stateFluxes = updateFluxMap flux (fluxname, idx) fluxmap
@@ -417,19 +419,13 @@ clearGone = Map.filter isGone
 decayFluxes :: UTCTime -> Map.Map Int Flux -> Map.Map Int Flux
 decayFluxes t = Map.map (decayFlux t)
 
-decayFlux :: UTCTime ->Flux -> Flux
-decayFlux t f = f { life = life' }
+decayFlux :: UTCTime -> Flux -> Flux
+decayFlux _ f@Flux{life=Nothing} = f
+decayFlux t f@Flux{life=Just l}
+  | diff >= l = f { life = Nothing }
+  | otherwise = f
   where
-    life' = changeLife ((-) diff) $ life f
     diff = realToFrac $ diffUTCTime t $ spawned f
-
-changeLife :: (Double -> Double) -> LifeTime -> LifeTime
-changeLife f (Just l)
-  | res > 0 = Just res
-  | otherwise = Nothing
-  where
-    res = f l
-changeLife _ Nothing = Nothing
 
 processEvents :: Demo ()
 processEvents = do
@@ -586,7 +582,6 @@ draw = do
                       let vec = GL.Vector3 (realToFrac x) (realToFrac y) 0 :: GL.Vector3 GL.GLfloat
                           x = posx f
                           y = posy f
-                      putStrLn("Life: " ++ (show $ life f))
                       GL.translate vec
                       GL.callList $ shape f
                      ) flatfluxes

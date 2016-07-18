@@ -6,7 +6,7 @@ import Sound.Tidal.Stream
 import Sound.Tidal.OscStream
 import Control.Concurrent.MVar
 
-import Sound.Tidal.Params (s_p, n_p)
+import Sound.Tidal.Params (s_p, n_p, dur_p)
 import Graphics.Daumenkino.Params
 
 primShape :: Shape
@@ -15,6 +15,7 @@ primShape = Shape {
   params = [
     s_p,
     n_p,
+    dur_p,
     x_p,
     y_p
     ],
