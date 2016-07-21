@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 
 (width, width_p) = pF "width" (Just 1)
 (height, height_p) = pF "height" (Just 1)
+(depth, depth_p) = pF "depth" (Just 1)
 
 (srcblend, srcblend_p) = pS "srcblend" (Just "a")
 (blend, blend_p) = pS "blend" (Just "x")

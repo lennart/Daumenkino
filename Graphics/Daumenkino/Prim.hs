@@ -17,7 +17,17 @@ primShape = Shape {
     n_p,
     dur_p,
     x_p,
-    y_p
+    y_p,
+    z_p,
+    width_p,
+    height_p,
+    depth_p,
+    rot_x_p,
+    rot_y_p,
+    rot_z_p,
+    red_p,
+    green_p,
+    blue_p
     ],
   cpsStamp = True,
   latency = 0.04

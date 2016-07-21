@@ -36,6 +36,7 @@ data Flux = Flux {
   shape :: !GL.DisplayList,
   posx :: !(Double,Double),
   posy :: !(Double,Double),
+  posz :: !(Double,Double),
   easing :: Easing,
   life :: !LifeTime,
   name :: !String,
@@ -45,6 +46,16 @@ data Flux = Flux {
 data FluxMessage = FluxMessage {
   fposx :: Double,
   fposy :: Double,
+  fposz :: Double,
+  fwidth :: Double,
+  fheight :: Double,
+  fdepth :: Double,
+  frotx :: Double,
+  froty :: Double,
+  frotz :: Double,
+  fred :: Double,
+  fgreen :: Double,
+  fblue :: Double,
   flife :: Double,
   fpath :: FluxID,
   ftime :: UTCTime
@@ -118,6 +129,7 @@ queueOSC q = maybe (return ()) (atomically . writeTQueue q)
 
 runOSCServer :: String -> Int -> TQueue Message -> IO ()
 runOSCServer host port q = do
+  putStrLn("Starting OSC Server at " ++ host ++ ":" ++ (show port))
   _ <- forkIO $ withTransport s (\fd -> forever (recvMessage fd >>= queueOSC q))
   return ()
     where
@@ -359,7 +371,7 @@ findFlux fluxname idx fluxmap = fluxM
     fluxM = join $ Map.lookup idx <$> fluxes
 
 fluxAPI :: ASCII
-fluxAPI = ascii ",iifsifff"
+fluxAPI = ascii ",iifsifffffffffffff"
 
 toFluxMessage :: Message -> Maybe FluxMessage
 toFluxMessage m = fluxm
@@ -368,12 +380,22 @@ toFluxMessage m = fluxm
     d = descriptor datems
     fluxm = case d == fluxAPI of
       True ->
-        Just $ FluxMessage posx' posy' life' (flux,idx) ts
+        Just $ FluxMessage posx' posy' posz' width' height' depth' rotx' roty' rotz' red' green' blue' life' (flux,idx) ts
         where
-          (_:_:_:dflux:didx:dlife:dposx:[dposy]) = datems
+          (_:_:_:dflux:didx:dlife:dposx:dposy:dposz:dwidth:dheight:ddepth:drotx:droty:drotz:dred:dgreen:[dblue]) = datems
           life' = fromJust $ datum_floating dlife
           posx' = fromJust $ datum_floating dposx
           posy' = fromJust $ datum_floating dposy
+          posz' = fromJust $ datum_floating dposz
+          width' = fromJust $ datum_floating dwidth
+          height' = fromJust $ datum_floating dheight
+          depth' = fromJust $ datum_floating ddepth
+          rotx' = fromJust $ datum_floating drotx
+          roty' = fromJust $ datum_floating droty
+          rotz' = fromJust $ datum_floating drotz
+          red' = fromJust $ datum_floating dred
+          green' = fromJust $ datum_floating dgreen
+          blue' = fromJust $ datum_floating dblue
           flux = fromJust $ datum_string dflux
           idx = fromJust $ datum_integral didx
           ts = readTimestamp m
@@ -386,22 +408,22 @@ processOscEvent m = maybe (liftIO $ putStrLn "invalid msg received") processFlux
     fluxmsgM = toFluxMessage m
   
 processFluxMessage :: FluxMessage -> Demo ()
-processFluxMessage FluxMessage{fposx=x,fposy=y,flife=l,fpath=(fluxname,idx),ftime=ts} = do
+processFluxMessage FluxMessage{fposx=x,fposy=y,fposz=z,flife=l,fpath=(fluxname,idx),ftime=ts} = do
   state <- get
   let fluxmap = stateFluxes state
       fluxM = findFlux fluxname idx fluxmap
   -- create DisplayList if this is a new Flux
-  (shape', xtween, ytween) <- liftIO $ case fluxM of
+  (shape', xtween, ytween, ztween) <- liftIO $ case fluxM of
     Nothing -> do
       gear <- makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)
-      return (gear, (0, x), (0,y))
-    Just Flux{shape=shape', posx=(xfrom,xto), posy=(yfrom,yto), spawned=t'} -> return (shape', (xnow, x), (ynow, y))
+      return (gear, (0, x), (0,y), (0,z))
+    Just Flux{shape=shape', posx=(xfrom,xto), posy=(yfrom,yto), posz=(zfrom,zto), spawned=t'} -> return (shape', (xnow, x), (ynow, y), (znow, z))
       where
         t = realToFrac $ diffUTCTime ts t'
-        (xnow,ynow,_) = tween3 Linear t l (xfrom,yfrom,0.0) (xto,yto,0.0)
+        (xnow,ynow,znow) = tween3 Linear t l (xfrom,yfrom,zfrom) (xto,yto,zto)
 
   -- create a new Flux with updated values
-  let flux = Flux shape' xtween ytween Linear (Just l) fluxname ts
+  let flux = Flux shape' xtween ytween ztween Linear (Just l) fluxname ts
   put state {
     -- FIXME: continue with lifetime reduction an removal of _dead_ fluxes, like this, fluxes live forever
     stateFluxes = updateFluxMap flux (fluxname, idx) fluxmap
