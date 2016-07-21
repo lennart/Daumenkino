@@ -27,13 +27,16 @@ import           Gear (makeGear)
 
 type LifeTime = Maybe Double
 
+data Easing = EaseIn | EaseOut | EaseInOut | Linear 
+
 type FluxMap = Map.Map String (Map.Map Int Flux)
 type FluxID = (String,Int)
 
 data Flux = Flux {
   shape :: !GL.DisplayList,
-  posx :: !Double,
-  posy :: !Double,
+  posx :: !(Double,Double),
+  posy :: !(Double,Double),
+  easing :: Easing,
   life :: !LifeTime,
   name :: !String,
   spawned :: UTCTime
@@ -388,11 +391,17 @@ processFluxMessage FluxMessage{fposx=x,fposy=y,flife=l,fpath=(fluxname,idx),ftim
   let fluxmap = stateFluxes state
       fluxM = findFlux fluxname idx fluxmap
   -- create DisplayList if this is a new Flux
-  shape' <- liftIO $ case fluxM of
-    Nothing -> makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)  -- red
-    Just Flux{shape=shape'} -> return shape'
+  (shape', xtween, ytween) <- liftIO $ case fluxM of
+    Nothing -> do
+      gear <- makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)
+      return (gear, (0, x), (0,y))
+    Just Flux{shape=shape', posx=(xfrom,xto), posy=(yfrom,yto), spawned=t'} -> return (shape', (xnow, x), (ynow, y))
+      where
+        t = realToFrac $ diffUTCTime ts t'
+        (xnow,ynow,_) = tween3 Linear t l (xfrom,yfrom,0.0) (xto,yto,0.0)
+
   -- create a new Flux with updated values
-  let flux = Flux shape' x y (Just l) fluxname ts
+  let flux = Flux shape' xtween ytween Linear (Just l) fluxname ts
   put state {
     -- FIXME: continue with lifetime reduction an removal of _dead_ fluxes, like this, fluxes live forever
     stateFluxes = updateFluxMap flux (fluxname, idx) fluxmap
@@ -558,8 +567,22 @@ adjustWindow = do
 flattenFluxes :: FluxMap -> [Flux]
 flattenFluxes fm = concat $ Map.elems $ Map.map Map.elems fm
 
+linear :: Double -> Double -> Double -> Double -> Double
+linear start end time timescale = change + start
+  where
+    change = range * pos
+    pos = time / timescale
+    range = end - start
+
+tween3 :: Easing -> Double -> Double -> (Double, Double, Double) -> (Double, Double, Double) -> (Double, Double, Double)
+tween3 Linear t tscale (x,y,z) (xto,yto,zto) = (linear x xto t tscale,
+                                                linear y yto t tscale,
+                                                linear z zto t tscale)
+tween3 _ t tscale from to = tween3 Linear t tscale from to
+
 draw :: Demo ()
 draw = do
+    ts <- liftIO getCurrentTime
     env   <- ask
     state <- get
     let gear1 = envGear1 env
@@ -579,9 +602,13 @@ draw = do
             GL.rotate (realToFrac za) zunit
             
             mapM_ (\f -> GL.preservingMatrix $ do
-                      let vec = GL.Vector3 (realToFrac x) (realToFrac y) 0 :: GL.Vector3 GL.GLfloat
-                          x = posx f
-                          y = posy f
+                      let vec = GL.Vector3 (realToFrac x) (realToFrac y) (realToFrac z) :: GL.Vector3 GL.GLfloat
+                          (xfrom,xto) = posx f                          
+                          (yfrom,yto) = posy f
+                          ease = easing f
+                          life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
+                          t = realToFrac $ diffUTCTime ts $ spawned f
+                          (x,y,z) = tween3 ease t life' (xfrom, yfrom, 0.0) (xto, yto, 0.0)
                       GL.translate vec
                       GL.callList $ shape f
                      ) flatfluxes

@@ -37,6 +37,8 @@ library
                      Graphics.Daumenkino.Colors
                      Graphics.Daumenkino.XKCD
                      Graphics.Daumenkino.Prim
+                     Graphics.Daumenkino.Pattern
+                     Graphics.Daumenkino.Strategies
 
   -- Modules included in this library but not exported.
   other-modules:
