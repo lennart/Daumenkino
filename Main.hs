@@ -178,7 +178,7 @@ main = do
         (fbWidth, fbHeight) <- GLFW.getFramebufferSize win
 
         let zDistClosest  = 10
-            zDistFarthest = zDistClosest + 20
+            zDistFarthest = zDistClosest + 30
             zDist         = zDistClosest + ((zDistFarthest - zDistClosest) / 2)
             env = Env
               { envEventsChan    = eventsChan
@@ -339,7 +339,9 @@ processOscEvents = do
         True -> do
           _ <- liftIO $ atomically $ readTQueue tc
           processOscEvent e
---          liftIO $ putStrLn $ show e
+          liftIO $ putStrLn $ show e
+          liftIO $ putStrLn $ show $ descriptor $ messageDatum e
+
           processOscEvents
         False ->
           return ()
@@ -627,10 +629,11 @@ draw = do
                       let vec = GL.Vector3 (realToFrac x) (realToFrac y) (realToFrac z) :: GL.Vector3 GL.GLfloat
                           (xfrom,xto) = posx f                          
                           (yfrom,yto) = posy f
+                          (zfrom,zto) = posz f
                           ease = easing f
                           life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
                           t = realToFrac $ diffUTCTime ts $ spawned f
-                          (x,y,z) = tween3 ease t life' (xfrom, yfrom, 0.0) (xto, yto, 0.0)
+                          (x,y,z) = tween3 ease t life' (xfrom, yfrom, zfrom) (xto, yto, zto)
                       GL.translate vec
                       GL.callList $ shape f
                      ) flatfluxes
