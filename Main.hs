@@ -16,11 +16,14 @@ import           Foreign.Marshal.Array (withArray)
 import           Foreign.Storable (sizeOf)
 import           Foreign.Ptr (plusPtr, nullPtr, Ptr)
 
+import           Linear (Matrix(..), V3(..), V4(..))
+
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX
 import           Sound.OSC.FD
 
 import qualified Graphics.Rendering.OpenGL as GL
+
 import qualified Graphics.UI.GLFW as GLFW
 
 import           System.Environment (getEnv)
@@ -72,6 +75,7 @@ data Env = Env
     , envZDistClosest  :: !Double
     , envZDistFarthest :: !Double
     , envTriDescriptor :: Descriptor
+    , envProgram       :: GL.Program
     }
 
 data State = State
@@ -116,10 +120,20 @@ data Event =
 
 triangle :: [GL.Vertex2 GL.GLfloat]
 triangle = [
+  GL.Vertex2 (-0.01) (-0.01),
+  GL.Vertex2 0.01 (-0.01),
+  GL.Vertex2 0 0.01
+  ]
+
+square :: [GL.Vertex2 GL.GLfloat]
+square = [
   GL.Vertex2 (-0.9) (-0.9),
   GL.Vertex2 0.8 (-0.9),
-  GL.Vertex2 (-0.9) 0.8
-  ]
+  GL.Vertex2 (-0.9) 0.8,
+  GL.Vertex2 (-0.85) 0.8,
+  GL.Vertex2 0.8 (-0.9),
+  GL.Vertex2 0.9 0.8
+         ]
 
 getEnvDefault :: String -> String -> IO String
 getEnvDefault defValue var = do
@@ -219,6 +233,7 @@ main = do
               , envZDistClosest  = zDistClosest
               , envZDistFarthest = zDistFarthest
               , envTriDescriptor = Descriptor tri firstIndex (fromIntegral numVertices)
+              , envProgram       = program
               }
             state = State
               { stateWindowWidth     = fbWidth
@@ -349,8 +364,8 @@ processOscEvents = do
         True -> do
           _ <- liftIO $ atomically $ readTQueue tc
           processOscEvent e
-          liftIO $ putStrLn $ show e
-          liftIO $ putStrLn $ show $ descriptor $ messageDatum e
+          -- liftIO $ putStrLn $ show e
+          -- liftIO $ putStrLn $ show $ descriptor $ messageDatum e
 
           processOscEvents
         False ->
@@ -431,22 +446,22 @@ processFluxMessage FluxMessage{fpos=pos'@(x,y,z),
   -- create DisplayList if this is a new Flux
   (shape', postween, siztween, rottween, coltween) <- liftIO $ case fluxM of
     Nothing -> do
-      gear <- makeGear 1   4 1   20 0.7 (GL.Color4 1 0 0   1)
+      gear <- makeGear 1   4 1   20 0.7 (GL.Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1)
       return (gear,
-              ((0,0,0), (x,y,z)),
-              ((0,0,0), (w,h,d)),
-              ((0,0,0), (phi,psi,xsi)),
-              ((0,0,0), (r,g,b)))
+              (pos', pos'),
+              (siz', siz'),
+              (rot', rot'),
+              (col', col'))
     Just Flux{shape=shape',
               pos=(posfrom,posto),
               siz=(sizfrom,sizto),
               rot=(rotfrom,rotto),
               col=(colfrom,colto),              
               spawned=t'} -> return (shape',
-                                     (posnow, pos'),
-                                     (siznow, siz'),
-                                     (rotnow, rot'),
-                                     (colnow, col')
+                                     (pos', pos'),
+                                     (siz', siz'),
+                                     (rot', rot'),
+                                     (col', col')
                                       )
       where
         t = realToFrac $ diffUTCTime ts t'
@@ -647,35 +662,78 @@ draw = do
         za = stateZAngle state
         ga = stateGearZAngle  state
         (Descriptor tris first num) = envTriDescriptor env
+        prog = envProgram env
     liftIO $ do
         GL.clear [GL.ColorBuffer, GL.DepthBuffer]
-        GL.bindVertexArrayObject GL.$= Just tris
-        GL.drawArrays GL.Triangles first num
-        -- GL.preservingMatrix $ do
-        --     GL.rotate (realToFrac xa) xunit
-        --     GL.rotate (realToFrac ya) yunit
-        --     GL.rotate (realToFrac za) zunit
-            
-        --     mapM_ (\f -> GL.preservingMatrix $ do
-        --               let vec = GL.Vector3 (realToFrac x) (realToFrac y) (realToFrac z) :: GL.Vector3 GL.GLfloat
-        --                   (posfrom,posto) = pos f
-        --                   (sizfrom,sizto) = siz f
-        --                   (rotfrom,rotto) = rot f
-        --                   (colfrom,colto) = col f                          
-        --                   ease = easing f
-        --                   life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
-        --                   t = realToFrac $ diffUTCTime ts $ spawned f
-        --                   (x,y,z) = tween3 ease t life' posfrom posto
-        --                   (w,h,d) = tween3 ease t life' sizfrom sizto
-        --                   (phi,psi,xsi) = tween3 ease t life' rotfrom rotto
-        --                   (r,g,b) = tween3 ease t life' colfrom colto
-        --               GL.translate vec
-        --               GL.scale w h d
-        --               GL.rotate (realToFrac phi) xunit
-        --               GL.rotate (realToFrac psi) yunit
-        --               GL.rotate (realToFrac xsi) zunit
-        --               GL.callList $ shape f
-        --              ) flatfluxes
+        
+
+        GL.preservingMatrix $ do
+            GL.rotate (realToFrac xa) xunit
+            GL.rotate (realToFrac ya) yunit
+            GL.rotate (realToFrac za) zunit
+            colL <- GL.uniformLocation prog "col"
+            posL <- GL.uniformLocation prog "pos"
+            tform1L <- GL.uniformLocation prog "mwc1"            
+            tform2L <- GL.uniformLocation prog "mwc2"
+            tform3L <- GL.uniformLocation prog "mwc3"            
+            tform4L <- GL.uniformLocation prog "mwc4"            
+            GL.bindVertexArrayObject GL.$= Just tris
+            mapM_ (\f -> do
+                      let vec = GL.Vector4 (realToFrac x) (realToFrac y) (realToFrac z) 0.0 :: GL.Vector4 GL.GLfloat
+                          colV = (GL.Vector4 (realToFrac r) (realToFrac g) (realToFrac b) 1.0 :: GL.Vector4 GL.GLfloat)                      
+                          (posfrom,posto) = pos f
+                          (sizfrom,sizto) = siz f
+                          (rotfrom,rotto) = rot f
+                          (colfrom,colto) = col f                          
+                          ease = easing f
+                          life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
+                          t = realToFrac $ diffUTCTime ts $ spawned f
+                          (x,y,z) = tween3 ease t life' posfrom posto
+                          (w,h,d) = tween3 ease t life' sizfrom sizto
+                          (phi,psi,xsi) = tween3 ease t life' rotfrom rotto
+                          (r,g,b) = tween3 ease t life' colfrom colto
+                          tformM = mkTransformation (Quaternion _) (V3 x y z)
+                          tform1 = GL.Vector4
+                            (realToFrac $ cos phi * cos psi + w)                      
+                            (realToFrac $ sin phi * cos psi)
+                            (realToFrac $ (-1) * sin psi)
+                            0
+                            :: GL.Vector4 GL.GLfloat                            
+                          tform2 = GL.Vector4
+                            (realToFrac $ cos phi * sin psi * sin xsi - sin phi * cos xsi)
+                            (realToFrac $ sin phi * sin psi * sin xsi + cos phi * cos xsi + h)
+                            (realToFrac $ cos psi * sin xsi)
+                            0
+                            :: GL.Vector4 GL.GLfloat
+                          tform3 = GL.Vector4
+                            (realToFrac $ cos phi * sin psi * cos xsi + sin phi * sin xsi)                          
+                            (realToFrac $ sin phi * sin psi * cos xsi - cos phi * sin xsi)
+                            (realToFrac $ cos psi * cos xsi + d)
+                            0
+                            :: GL.Vector4 GL.GLfloat
+                          tform4 = GL.Vector4
+                            (realToFrac x)
+                            (realToFrac y)
+                            (realToFrac z)
+                            1
+                            :: GL.Vector4 GL.GLfloat
+
+                      
+                      -- GL.translate vec
+                      -- GL.scale w h d
+                      -- GL.rotate (realToFrac phi) xunit
+                      -- GL.rotate (realToFrac psi) yunit
+                      -- GL.rotate (realToFrac xsi) zunit
+                      
+                      GL.uniform tform1L GL.$= tform1
+                      GL.uniform tform2L GL.$= tform2
+                      GL.uniform tform3L GL.$= tform3
+                      GL.uniform tform4L GL.$= tform4
+                      GL.uniform colL GL.$= colV
+                      GL.uniform posL GL.$= vec
+                      GL.drawArrays GL.Triangles first num
+
+                     ) flatfluxes
       where
         xunit = GL.Vector3 1 0 0 :: GL.Vector3 GL.GLfloat
         yunit = GL.Vector3 0 1 0 :: GL.Vector3 GL.GLfloat
