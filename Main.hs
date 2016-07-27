@@ -12,6 +12,10 @@ import           Data.List (intercalate)
 import           Data.Maybe (catMaybes, fromMaybe, fromJust)
 import           Text.PrettyPrint
 
+import           Foreign.Marshal.Array (withArray)
+import           Foreign.Storable (sizeOf)
+import           Foreign.Ptr (plusPtr, nullPtr, Ptr)
+
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX
 import           Sound.OSC.FD
@@ -23,9 +27,12 @@ import           System.Environment (getEnv)
 
 import qualified Data.Map.Strict as Map
 
+import           NGL.LoadShaders
 import           Gear (makeGear)
 
 type LifeTime = Maybe Double
+type V3 = (Double,Double,Double)
+type Tween = (V3,V3)
 
 data Easing = EaseIn | EaseOut | EaseInOut | Linear 
 
@@ -34,9 +41,10 @@ type FluxID = (String,Int)
 
 data Flux = Flux {
   shape :: !GL.DisplayList,
-  posx :: !(Double,Double),
-  posy :: !(Double,Double),
-  posz :: !(Double,Double),
+  pos :: !Tween,
+  siz :: !Tween,
+  rot :: !Tween,
+  col :: !Tween,
   easing :: Easing,
   life :: !LifeTime,
   name :: !String,
@@ -44,33 +52,26 @@ data Flux = Flux {
   }
 
 data FluxMessage = FluxMessage {
-  fposx :: Double,
-  fposy :: Double,
-  fposz :: Double,
-  fwidth :: Double,
-  fheight :: Double,
-  fdepth :: Double,
-  frotx :: Double,
-  froty :: Double,
-  frotz :: Double,
-  fred :: Double,
-  fgreen :: Double,
-  fblue :: Double,
+  fpos :: V3,
+  fsiz :: V3,
+  frot :: V3,
+  fcol :: V3,
   flife :: Double,
   fpath :: FluxID,
   ftime :: UTCTime
                  }
+
+
+data Descriptor = Descriptor GL.VertexArrayObject GL.ArrayIndex GL.NumArrayIndices
 --------------------------------------------------------------------------------
 
 data Env = Env
     { envEventsChan    :: TQueue Event
     , envOscEvents     :: TQueue Message
     , envWindow        :: !GLFW.Window
-    , envGear1         :: !GL.DisplayList
-    , envGear2         :: !GL.DisplayList
-    , envGear3         :: !GL.DisplayList
     , envZDistClosest  :: !Double
     , envZDistFarthest :: !Double
+    , envTriDescriptor :: Descriptor
     }
 
 data State = State
@@ -113,6 +114,13 @@ data Event =
 
 --------------------------------------------------------------------------------
 
+triangle :: [GL.Vertex2 GL.GLfloat]
+triangle = [
+  GL.Vertex2 (-0.9) (-0.9),
+  GL.Vertex2 0.8 (-0.9),
+  GL.Vertex2 (-0.9) 0.8
+  ]
+
 getEnvDefault :: String -> String -> IO String
 getEnvDefault defValue var = do
   res <- try . getEnv $ var
@@ -134,6 +142,9 @@ runOSCServer host port q = do
   return ()
     where
       s = udpServer host port
+
+bufferOffset :: Integral a => a -> Ptr b
+bufferOffset = plusPtr nullPtr . fromIntegral
 
 main :: IO ()
 main = do
@@ -171,12 +182,33 @@ main = do
         GL.clearColor GL.$= GL.Color4 0.05 0.05 0.05 1
         GL.normalize  GL.$= GL.Enabled
 
-        gear1 <- makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)  -- red
-        gear2 <- makeGear 0.5 2 2   10 0.7 (GL.Color4 0   0.8 0.2 1)  -- green
-        gear3 <- makeGear 1.3 2 0.5 10 0.7 (GL.Color4 0.2 0.2 1   1)  -- blue
-
         (fbWidth, fbHeight) <- GLFW.getFramebufferSize win
 
+        tri <- GL.genObjectName
+                  
+        GL.bindVertexArrayObject GL.$= Just tri
+
+        let vs = triangle
+            numVertices = length vs
+
+        vertexBuffer <- GL.genObjectName
+        GL.bindBuffer GL.ArrayBuffer GL.$= Just vertexBuffer
+        withArray vs $ \ptr -> do
+          let size = fromIntegral (numVertices * sizeOf (head vs))
+          GL.bufferData GL.ArrayBuffer GL.$= (size, ptr, GL.StaticDraw)
+
+        let firstIndex = 0
+            vPosition = GL.AttribLocation 0
+        GL.vertexAttribPointer vPosition GL.$=
+          (GL.ToFloat, GL.VertexArrayDescriptor 2 GL.Float 0 (bufferOffset firstIndex))
+        GL.vertexAttribArray vPosition  GL.$= GL.Enabled
+
+        program <- loadShaders [
+          ShaderInfo GL.VertexShader (FileSource "Shaders/shader.vert"),
+          ShaderInfo GL.FragmentShader (FileSource "Shaders/shader.frag")
+          ]
+        GL.currentProgram GL.$= Just program
+          
         let zDistClosest  = 10
             zDistFarthest = zDistClosest + 30
             zDist         = zDistClosest + ((zDistFarthest - zDistClosest) / 2)
@@ -184,11 +216,9 @@ main = do
               { envEventsChan    = eventsChan
               , envOscEvents     = oscEvents
               , envWindow        = win
-              , envGear1         = gear1
-              , envGear2         = gear2
-              , envGear3         = gear3
               , envZDistClosest  = zDistClosest
               , envZDistFarthest = zDistFarthest
+              , envTriDescriptor = Descriptor tri firstIndex (fromIntegral numVertices)
               }
             state = State
               { stateWindowWidth     = fbWidth
@@ -206,6 +236,7 @@ main = do
               , stateDragStartXAngle = 0
               , stateDragStartYAngle = 0
               }
+              
         runDemo env state
 
     putStrLn "ended!"
@@ -288,27 +319,6 @@ run = do
     decayFluxMap
     processEvents
     processOscEvents
---    state <- get
-    -- if stateDragging state
-    --   then do
-    --       let sodx  = stateDragStartX      state
-    --           sody  = stateDragStartY      state
-    --           sodxa = stateDragStartXAngle state
-    --           sodya = stateDragStartYAngle state
-    --       (x, y) <- liftIO $ GLFW.getCursorPos win
-    --       let myrot = (x - sodx) / 2
-    --           mxrot = (y - sody) / 2
-    --       put $ state
-    --         { stateXAngle = sodxa + mxrot
-    --         , stateYAngle = sodya + myrot
-    --         }
-    --   else do
-    --       (kxrot, kyrot) <- liftIO $ getCursorKeyDirections win
-    --       (jxrot, jyrot) <- liftIO $ getJoystickDirections GLFW.Joystick'1
-    --       put $ state
-    --         { stateXAngle = stateXAngle state + (2 * kxrot) + (2 * jxrot)
-    --         , stateYAngle = stateYAngle state + (2 * kyrot) + (2 * jyrot)
-    --         }
 
     mt <- liftIO GLFW.getTime
     modify $ \s -> s
@@ -382,7 +392,7 @@ toFluxMessage m = fluxm
     d = descriptor datems
     fluxm = case d == fluxAPI of
       True ->
-        Just $ FluxMessage posx' posy' posz' width' height' depth' rotx' roty' rotz' red' green' blue' life' (flux,idx) ts
+        Just $ FluxMessage (posx', posy', posz') (width', height', depth') (rotx', roty', rotz') (red', green', blue') life' (flux,idx) ts
         where
           (_:_:_:dflux:didx:dlife:dposx:dposy:dposz:dwidth:dheight:ddepth:drotx:droty:drotz:dred:dgreen:[dblue]) = datems
           life' = fromJust $ datum_floating dlife
@@ -410,22 +420,43 @@ processOscEvent m = maybe (liftIO $ putStrLn "invalid msg received") processFlux
     fluxmsgM = toFluxMessage m
   
 processFluxMessage :: FluxMessage -> Demo ()
-processFluxMessage FluxMessage{fposx=x,fposy=y,fposz=z,flife=l,fpath=(fluxname,idx),ftime=ts} = do
+processFluxMessage FluxMessage{fpos=pos'@(x,y,z),
+                               fsiz=siz'@(w,h,d),
+                               frot=rot'@(phi,psi,xsi),
+                               fcol=col'@(r,g,b),
+                               flife=l, fpath=(fluxname,idx), ftime=ts} = do
   state <- get
   let fluxmap = stateFluxes state
       fluxM = findFlux fluxname idx fluxmap
   -- create DisplayList if this is a new Flux
-  (shape', xtween, ytween, ztween) <- liftIO $ case fluxM of
+  (shape', postween, siztween, rottween, coltween) <- liftIO $ case fluxM of
     Nothing -> do
-      gear <- makeGear 1   4 1   20 0.7 (GL.Color4 0.8 0.1 0   1)
-      return (gear, (0, x), (0,y), (0,z))
-    Just Flux{shape=shape', posx=(xfrom,xto), posy=(yfrom,yto), posz=(zfrom,zto), spawned=t'} -> return (shape', (xnow, x), (ynow, y), (znow, z))
+      gear <- makeGear 1   4 1   20 0.7 (GL.Color4 1 0 0   1)
+      return (gear,
+              ((0,0,0), (x,y,z)),
+              ((0,0,0), (w,h,d)),
+              ((0,0,0), (phi,psi,xsi)),
+              ((0,0,0), (r,g,b)))
+    Just Flux{shape=shape',
+              pos=(posfrom,posto),
+              siz=(sizfrom,sizto),
+              rot=(rotfrom,rotto),
+              col=(colfrom,colto),              
+              spawned=t'} -> return (shape',
+                                     (posnow, pos'),
+                                     (siznow, siz'),
+                                     (rotnow, rot'),
+                                     (colnow, col')
+                                      )
       where
         t = realToFrac $ diffUTCTime ts t'
-        (xnow,ynow,znow) = tween3 Linear t l (xfrom,yfrom,zfrom) (xto,yto,zto)
+        posnow = tween3 Linear t l posfrom posto
+        siznow = tween3 Linear t l sizfrom sizto
+        rotnow = tween3 Linear t l rotfrom rotto
+        colnow = tween3 Linear t l colfrom colto        
 
   -- create a new Flux with updated values
-  let flux = Flux shape' xtween ytween ztween Linear (Just l) fluxname ts
+  let flux = Flux shape' postween siztween rottween coltween Linear (Just l) fluxname ts
   put state {
     -- FIXME: continue with lifetime reduction an removal of _dead_ fluxes, like this, fluxes live forever
     stateFluxes = updateFluxMap flux (fluxname, idx) fluxmap
@@ -609,50 +640,43 @@ draw = do
     ts <- liftIO getCurrentTime
     env   <- ask
     state <- get
-    let gear1 = envGear1 env
-        gear2 = envGear2 env
-        gear3 = envGear3 env
-        fluxmap = stateFluxes state
+    let fluxmap = stateFluxes state
         flatfluxes = flattenFluxes fluxmap
         xa = stateXAngle state
         ya = stateYAngle state
         za = stateZAngle state
         ga = stateGearZAngle  state
+        (Descriptor tris first num) = envTriDescriptor env
     liftIO $ do
         GL.clear [GL.ColorBuffer, GL.DepthBuffer]
-        GL.preservingMatrix $ do
-            GL.rotate (realToFrac xa) xunit
-            GL.rotate (realToFrac ya) yunit
-            GL.rotate (realToFrac za) zunit
+        GL.bindVertexArrayObject GL.$= Just tris
+        GL.drawArrays GL.Triangles first num
+        -- GL.preservingMatrix $ do
+        --     GL.rotate (realToFrac xa) xunit
+        --     GL.rotate (realToFrac ya) yunit
+        --     GL.rotate (realToFrac za) zunit
             
-            mapM_ (\f -> GL.preservingMatrix $ do
-                      let vec = GL.Vector3 (realToFrac x) (realToFrac y) (realToFrac z) :: GL.Vector3 GL.GLfloat
-                          (xfrom,xto) = posx f                          
-                          (yfrom,yto) = posy f
-                          (zfrom,zto) = posz f
-                          ease = easing f
-                          life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
-                          t = realToFrac $ diffUTCTime ts $ spawned f
-                          (x,y,z) = tween3 ease t life' (xfrom, yfrom, zfrom) (xto, yto, zto)
-                      GL.translate vec
-                      GL.callList $ shape f
-                     ) flatfluxes
-            -- GL.preservingMatrix $ do
-            --     GL.translate gear1vec
-            --     GL.rotate (realToFrac ga) zunit
-            --     GL.callList gear1
-            -- GL.preservingMatrix $ do
-            --     GL.translate gear2vec
-            --     GL.rotate (-2 * realToFrac ga - 9) zunit
-            --     GL.callList gear2
-            -- GL.preservingMatrix $ do
-            --     GL.translate gear3vec
-            --     GL.rotate (-2 * realToFrac ga - 25) zunit
-            --     GL.callList gear3
+        --     mapM_ (\f -> GL.preservingMatrix $ do
+        --               let vec = GL.Vector3 (realToFrac x) (realToFrac y) (realToFrac z) :: GL.Vector3 GL.GLfloat
+        --                   (posfrom,posto) = pos f
+        --                   (sizfrom,sizto) = siz f
+        --                   (rotfrom,rotto) = rot f
+        --                   (colfrom,colto) = col f                          
+        --                   ease = easing f
+        --                   life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
+        --                   t = realToFrac $ diffUTCTime ts $ spawned f
+        --                   (x,y,z) = tween3 ease t life' posfrom posto
+        --                   (w,h,d) = tween3 ease t life' sizfrom sizto
+        --                   (phi,psi,xsi) = tween3 ease t life' rotfrom rotto
+        --                   (r,g,b) = tween3 ease t life' colfrom colto
+        --               GL.translate vec
+        --               GL.scale w h d
+        --               GL.rotate (realToFrac phi) xunit
+        --               GL.rotate (realToFrac psi) yunit
+        --               GL.rotate (realToFrac xsi) zunit
+        --               GL.callList $ shape f
+        --              ) flatfluxes
       where
-        gear1vec = GL.Vector3 (-3)   (-2)  0 :: GL.Vector3 GL.GLfloat
-        gear2vec = GL.Vector3   3.1  (-2)  0 :: GL.Vector3 GL.GLfloat
-        gear3vec = GL.Vector3 (-3.1)   4.2 0 :: GL.Vector3 GL.GLfloat
         xunit = GL.Vector3 1 0 0 :: GL.Vector3 GL.GLfloat
         yunit = GL.Vector3 0 1 0 :: GL.Vector3 GL.GLfloat
         zunit = GL.Vector3 0 0 1 :: GL.Vector3 GL.GLfloat
