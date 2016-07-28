@@ -16,7 +16,10 @@ import           Foreign.Marshal.Array (withArray)
 import           Foreign.Storable (sizeOf)
 import           Foreign.Ptr (plusPtr, nullPtr, Ptr)
 
-import           Linear (Matrix(..), V3(..), V4(..))
+import          Linear.Quaternion
+import           Linear.Matrix
+import qualified Linear.V3 as LV3
+import qualified Linear.V4 as LV4
 
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX
@@ -35,7 +38,10 @@ import           Gear (makeGear)
 
 type LifeTime = Maybe Double
 type V3 = (Double,Double,Double)
+type V4 = (Double,Double,Double,Double)
+
 type Tween = (V3,V3)
+type Tween4 = (V4,V4)
 
 data Easing = EaseIn | EaseOut | EaseInOut | Linear 
 
@@ -46,7 +52,7 @@ data Flux = Flux {
   shape :: !GL.DisplayList,
   pos :: !Tween,
   siz :: !Tween,
-  rot :: !Tween,
+  rot :: !Tween4,
   col :: !Tween,
   easing :: Easing,
   life :: !LifeTime,
@@ -57,7 +63,7 @@ data Flux = Flux {
 data FluxMessage = FluxMessage {
   fpos :: V3,
   fsiz :: V3,
-  frot :: V3,
+  frot :: V4,
   fcol :: V3,
   flife :: Double,
   fpath :: FluxID,
@@ -398,7 +404,7 @@ findFlux fluxname idx fluxmap = fluxM
     fluxM = join $ Map.lookup idx <$> fluxes
 
 fluxAPI :: ASCII
-fluxAPI = ascii ",iifsifffffffffffff"
+fluxAPI = ascii ",iifsiffffffffffffff"
 
 toFluxMessage :: Message -> Maybe FluxMessage
 toFluxMessage m = fluxm
@@ -407,9 +413,9 @@ toFluxMessage m = fluxm
     d = descriptor datems
     fluxm = case d == fluxAPI of
       True ->
-        Just $ FluxMessage (posx', posy', posz') (width', height', depth') (rotx', roty', rotz') (red', green', blue') life' (flux,idx) ts
+        Just $ FluxMessage (posx', posy', posz') (width', height', depth') (angle', rotx', roty', rotz') (red', green', blue') life' (flux,idx) ts
         where
-          (_:_:_:dflux:didx:dlife:dposx:dposy:dposz:dwidth:dheight:ddepth:drotx:droty:drotz:dred:dgreen:[dblue]) = datems
+          (_:_:_:dflux:didx:dlife:dposx:dposy:dposz:dwidth:dheight:ddepth:drotx:droty:drotz:dangle:dred:dgreen:[dblue]) = datems
           life' = fromJust $ datum_floating dlife
           posx' = fromJust $ datum_floating dposx
           posy' = fromJust $ datum_floating dposy
@@ -420,6 +426,7 @@ toFluxMessage m = fluxm
           rotx' = fromJust $ datum_floating drotx
           roty' = fromJust $ datum_floating droty
           rotz' = fromJust $ datum_floating drotz
+          angle' = fromJust $ datum_floating dangle
           red' = fromJust $ datum_floating dred
           green' = fromJust $ datum_floating dgreen
           blue' = fromJust $ datum_floating dblue
@@ -437,7 +444,7 @@ processOscEvent m = maybe (liftIO $ putStrLn "invalid msg received") processFlux
 processFluxMessage :: FluxMessage -> Demo ()
 processFluxMessage FluxMessage{fpos=pos'@(x,y,z),
                                fsiz=siz'@(w,h,d),
-                               frot=rot'@(phi,psi,xsi),
+                               frot=rot'@(angle,phi,psi,xsi),
                                fcol=col'@(r,g,b),
                                flife=l, fpath=(fluxname,idx), ftime=ts} = do
   state <- get
@@ -467,7 +474,7 @@ processFluxMessage FluxMessage{fpos=pos'@(x,y,z),
         t = realToFrac $ diffUTCTime ts t'
         posnow = tween3 Linear t l posfrom posto
         siznow = tween3 Linear t l sizfrom sizto
-        rotnow = tween3 Linear t l rotfrom rotto
+        rotnow = tween4 Linear t l rotfrom rotto
         colnow = tween3 Linear t l colfrom colto        
 
   -- create a new Flux with updated values
@@ -644,11 +651,19 @@ linear start end time timescale = change + start
     pos = time / timescale
     range = end - start
 
-tween3 :: Easing -> Double -> Double -> (Double, Double, Double) -> (Double, Double, Double) -> (Double, Double, Double)
+tween3 :: Easing -> Double -> Double -> V3 -> V3 -> V3
 tween3 Linear t tscale (x,y,z) (xto,yto,zto) = (linear x xto t tscale,
                                                 linear y yto t tscale,
                                                 linear z zto t tscale)
 tween3 _ t tscale from to = tween3 Linear t tscale from to
+
+tween4 :: Easing -> Double -> Double -> V4 -> V4 -> V4
+tween4 Linear t tscale (x,y,z,w) (xto,yto,zto,wto) = (linear x xto t tscale,
+                                                      linear y yto t tscale,
+                                                      linear z zto t tscale,
+                                                      linear w wto t tscale)
+tween4 _ t tscale from to = tween4 Linear t tscale from to
+
 
 draw :: Demo ()
 draw = do
@@ -690,9 +705,9 @@ draw = do
                           t = realToFrac $ diffUTCTime ts $ spawned f
                           (x,y,z) = tween3 ease t life' posfrom posto
                           (w,h,d) = tween3 ease t life' sizfrom sizto
-                          (phi,psi,xsi) = tween3 ease t life' rotfrom rotto
+                          (angle,phi,psi,xsi) = tween4 ease t life' rotfrom rotto
                           (r,g,b) = tween3 ease t life' colfrom colto
-                          tformM = mkTransformation (Quaternion _) (V3 x y z)
+                          tformM = mkTransformation (Quaternion angle $ LV3.V3 phi psi xsi) (LV3.V3 x y z)
                           tform1 = GL.Vector4
                             (realToFrac $ cos phi * cos psi + w)                      
                             (realToFrac $ sin phi * cos psi)

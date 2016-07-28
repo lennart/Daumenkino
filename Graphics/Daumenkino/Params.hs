@@ -31,6 +31,7 @@ import qualified Data.Map as Map
 (rot_x, rot_x_p) = pF "rot_x" (Just 0)
 (rot_y, rot_y_p) = pF "rot_y" (Just 0)
 (rot_z, rot_z_p) = pF "rot_z" (Just 0)
+(angle, angle_p) = pF "angle" (Just 0)
 
 (origin_x, origin_x_p) = pI "origin_x" (Just 0)
 (origin_y, origin_y_p) = pI "origin_y" (Just 0)

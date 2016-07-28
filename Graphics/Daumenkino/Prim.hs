@@ -25,6 +25,7 @@ primShape = Shape {
     rot_x_p,
     rot_y_p,
     rot_z_p,
+    angle_p,
     red_p,
     green_p,
     blue_p
