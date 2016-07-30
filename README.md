@@ -1,17 +1,10 @@
 # Daumenkino
-Live code visuals - A Tidal interface to graphics
+Live code visuals - A Tidal interface to visuals
 
-_Daumenkino_ is the german word for _flip-book_, it serves as an analogy for what you can do with this. Make your own flip-books in real-time from single frames of a video or completely from scratch using geometric shapes. Think of animated gifs combined with a plot, you decide, in realtime.
+_Daumenkino_ is the german word for _flip-book_, it serves as an analogy for how it works. Make your own flip-books in real-time from single frames of a video or completely from scratch using geometric shapes. Think of animated gifs combined with a plot, you decide, in realtime.
+
 
 ## Installation
-
-A requirement for _Daumenkino_ is [weltfrieden](https://github.com/fortmeier/weltfrieden), a simple opengl renderer. To install it run this in terminal:
-
-```
-git clone https://github.com/fortmeier/weltfrieden
-cd weltfrieden
-make
-```
 
 To install _Daumenkino_ run:
 
