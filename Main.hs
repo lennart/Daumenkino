@@ -16,8 +16,9 @@ import           Foreign.Marshal.Array (withArray)
 import           Foreign.Storable (sizeOf)
 import           Foreign.Ptr (plusPtr, nullPtr, Ptr)
 
-import          Linear.Quaternion
+import           Linear.Quaternion
 import           Linear.Matrix
+import Linear.Vector (scaled)
 import qualified Linear.V3 as LV3
 import qualified Linear.V4 as LV4
 
@@ -665,6 +666,20 @@ tween4 Linear t tscale (x,y,z,w) (xto,yto,zto,wto) = (linear x xto t tscale,
 tween4 _ t tscale from to = tween4 Linear t tscale from to
 
 
+m44To4V4GL :: M44 Double -> (GL.Vector4 GL.GLfloat, GL.Vector4 GL.GLfloat, GL.Vector4 GL.GLfloat, GL.Vector4 GL.GLfloat)
+m44To4V4GL m = (a',b',c',d')
+  where
+    (LV4.V4 a b c d) = transpose m
+    a' = makeGLV4 a
+    b' = makeGLV4 b
+    c' = makeGLV4 c
+    d' = makeGLV4 d
+    makeGLV4 (LV4.V4 x y z w) = GL.Vector4
+      (realToFrac x)
+      (realToFrac y)
+      (realToFrac z)
+      (realToFrac w)
+
 draw :: Demo ()
 draw = do
     ts <- liftIO getCurrentTime
@@ -686,69 +701,40 @@ draw = do
             GL.rotate (realToFrac xa) xunit
             GL.rotate (realToFrac ya) yunit
             GL.rotate (realToFrac za) zunit
-            colL <- GL.uniformLocation prog "col"
-            posL <- GL.uniformLocation prog "pos"
-            tform1L <- GL.uniformLocation prog "mwc1"            
-            tform2L <- GL.uniformLocation prog "mwc2"
-            tform3L <- GL.uniformLocation prog "mwc3"            
-            tform4L <- GL.uniformLocation prog "mwc4"            
-            GL.bindVertexArrayObject GL.$= Just tris
-            mapM_ (\f -> do
-                      let vec = GL.Vector4 (realToFrac x) (realToFrac y) (realToFrac z) 0.0 :: GL.Vector4 GL.GLfloat
-                          colV = (GL.Vector4 (realToFrac r) (realToFrac g) (realToFrac b) 1.0 :: GL.Vector4 GL.GLfloat)                      
-                          (posfrom,posto) = pos f
-                          (sizfrom,sizto) = siz f
-                          (rotfrom,rotto) = rot f
-                          (colfrom,colto) = col f                          
-                          ease = easing f
-                          life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
-                          t = realToFrac $ diffUTCTime ts $ spawned f
-                          (x,y,z) = tween3 ease t life' posfrom posto
-                          (w,h,d) = tween3 ease t life' sizfrom sizto
-                          (angle,phi,psi,xsi) = tween4 ease t life' rotfrom rotto
-                          (r,g,b) = tween3 ease t life' colfrom colto
-                          tformM = mkTransformation (Quaternion angle $ LV3.V3 phi psi xsi) (LV3.V3 x y z)
-                          tform1 = GL.Vector4
-                            (realToFrac $ cos phi * cos psi + w)                      
-                            (realToFrac $ sin phi * cos psi)
-                            (realToFrac $ (-1) * sin psi)
-                            0
-                            :: GL.Vector4 GL.GLfloat                            
-                          tform2 = GL.Vector4
-                            (realToFrac $ cos phi * sin psi * sin xsi - sin phi * cos xsi)
-                            (realToFrac $ sin phi * sin psi * sin xsi + cos phi * cos xsi + h)
-                            (realToFrac $ cos psi * sin xsi)
-                            0
-                            :: GL.Vector4 GL.GLfloat
-                          tform3 = GL.Vector4
-                            (realToFrac $ cos phi * sin psi * cos xsi + sin phi * sin xsi)                          
-                            (realToFrac $ sin phi * sin psi * cos xsi - cos phi * sin xsi)
-                            (realToFrac $ cos psi * cos xsi + d)
-                            0
-                            :: GL.Vector4 GL.GLfloat
-                          tform4 = GL.Vector4
-                            (realToFrac x)
-                            (realToFrac y)
-                            (realToFrac z)
-                            1
-                            :: GL.Vector4 GL.GLfloat
+        colL <- GL.uniformLocation prog "col"
+        posL <- GL.uniformLocation prog "pos"
+        tform1L <- GL.uniformLocation prog "mwc1"            
+        tform2L <- GL.uniformLocation prog "mwc2"
+        tform3L <- GL.uniformLocation prog "mwc3"            
+        tform4L <- GL.uniformLocation prog "mwc4"         
+        GL.bindVertexArrayObject GL.$= Just tris
+        mapM_ (\f -> do
+                  let vec = GL.Vector4 (realToFrac x) (realToFrac y) (realToFrac z) 0.0 :: GL.Vector4 GL.GLfloat
+                      colV = (GL.Vector4 (realToFrac r) (realToFrac g) (realToFrac b) 1.0 :: GL.Vector4 GL.GLfloat)                      
+                      (posfrom,posto) = pos f
+                      (sizfrom,sizto) = siz f
+                      (rotfrom,rotto) = rot f
+                      (colfrom,colto) = col f                          
+                      ease = easing f
+                      life' = fromJust $ life f -- let's assume we can be sure here this is _Something_
+                      t = realToFrac $ diffUTCTime ts $ spawned f
+                      (x,y,z) = tween3 ease t life' posfrom posto
+                      (w,h,d) = tween3 ease t life' sizfrom sizto
+                      scaleM = scaled $ LV4.V4 w h d 1
+                      (angle,phi,psi,xsi) = tween4 ease t life' rotfrom rotto
+                      (r,g,b) = tween3 ease t life' colfrom colto
+                      (tform1,tform2,tform3,tform4) = m44To4V4GL $ (flip (!*!)) scaleM $ mkTransformation (axisAngle (LV3.V3 phi psi xsi) (angle * pi)) (LV3.V3 x y z)
 
-                      
-                      -- GL.translate vec
-                      -- GL.scale w h d
-                      -- GL.rotate (realToFrac phi) xunit
-                      -- GL.rotate (realToFrac psi) yunit
-                      -- GL.rotate (realToFrac xsi) zunit
-                      
-                      GL.uniform tform1L GL.$= tform1
-                      GL.uniform tform2L GL.$= tform2
-                      GL.uniform tform3L GL.$= tform3
-                      GL.uniform tform4L GL.$= tform4
-                      GL.uniform colL GL.$= colV
-                      GL.uniform posL GL.$= vec
-                      GL.drawArrays GL.Triangles first num
 
-                     ) flatfluxes
+                  GL.uniform tform1L GL.$= tform1
+                  GL.uniform tform2L GL.$= tform2
+                  GL.uniform tform3L GL.$= tform3
+                  GL.uniform tform4L GL.$= tform4                      
+                  GL.uniform colL GL.$= colV
+                  GL.uniform posL GL.$= vec
+                  GL.drawArrays GL.Triangles first num
+
+                 ) flatfluxes
       where
         xunit = GL.Vector3 1 0 0 :: GL.Vector3 GL.GLfloat
         yunit = GL.Vector3 0 1 0 :: GL.Vector3 GL.GLfloat
