@@ -5,3 +5,4 @@ import Graphics.Daumenkino.Pattern as C
 import Graphics.Daumenkino.Strategies as C
 import Graphics.Daumenkino.Prim as C
 import Graphics.Daumenkino.Shader as C
+import Graphics.Daumenkino.Space as C

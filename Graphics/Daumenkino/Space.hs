@@ -84,37 +84,9 @@ c+h+t r+h+t k+h+t
 
 -}
 
-join :: Pattern (a, a) -> PatternT2 a b -> Pattern (b,b)
-join pv (ax,ay) = pair ((ax pvx),(ay pvy))
-  where
-    (pvx,pvy) = unpair pv
 
-tesselate :: Integer -> Pattern a -> [Pattern a]
-tesselate tes a = map excerpt zipped
-  where
-    zipped = zip [a] [0..tes]
-    excerpt (a', i) = zoom (i%tes,(i+1)%tes) $ a'
-
-
-pair :: (Pattern a, Pattern a) -> Pattern (a,a)
-pair (a,b) = liftA2 (,) a b 
-
-unpair :: Pattern (a,a) -> (Pattern a, Pattern a)
-unpair pt = (liftA fst pt, liftA snd pt)
-  
-expand :: [Pattern a] -> [Pattern a] -> Pattern (a,a)
-expand a b = cat pairpats
-  where
-    pairpats = map (pair) ppairs
-    ppairs = zip a b
-
-
-
-draw :: Integer -> PatternT2 a b -> Pattern a -> Pattern a -> Pattern (b,b)
-draw tes (ax, ay) x y = join (expand x' y') (ax,ay)
-  where
-    x' = tesselate tes x
-    y' = tesselate tes y
-
-
+mat :: [Pattern a] -> Pattern (Pattern a)
+mat ps = cat $ map (liftA pure) ps
  
+
+

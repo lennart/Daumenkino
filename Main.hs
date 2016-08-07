@@ -46,8 +46,7 @@ type Tween4 = (V4,V4)
 
 data Easing = EaseIn | EaseOut | EaseInOut | Linear 
 
-type FluxMap = Map.Map String (Map.Map Int Flux)
-type FluxID = (String,Int)
+type FluxMap = [Flux]
 
 data Flux = Flux {
   shape :: !GL.DisplayList,
@@ -67,7 +66,7 @@ data FluxMessage = FluxMessage {
   frot :: V4,
   fcol :: V3,
   flife :: Double,
-  fpath :: FluxID,
+  fname :: String,
   ftime :: UTCTime
                  }
 
@@ -230,8 +229,8 @@ main = do
           ]
         GL.currentProgram GL.$= Just program
           
-        let zDistClosest  = 10
-            zDistFarthest = zDistClosest + 30
+        let zDistClosest  = 1
+            zDistFarthest = zDistClosest + 50
             zDist         = zDistClosest + ((zDistFarthest - zDistClosest) / 2)
             env = Env
               { envEventsChan    = eventsChan
@@ -245,7 +244,7 @@ main = do
             state = State
               { stateWindowWidth     = fbWidth
               , stateWindowHeight    = fbHeight
-              , stateFluxes          = Map.empty
+              , stateFluxes          = []
               , stateXAngle          = 0
               , stateYAngle          = 0
               , stateZAngle          = 0
@@ -381,28 +380,14 @@ processOscEvents = do
           ts = readTimestamp e
     Nothing -> return ()
 
-{-|
-Change the given FluxMap at FluxID:
-
-if there is a value at FluxID, replace it with the given Something
-
-if there is no value at FluxID, create a map at `fluxname` and store the `flux` at index `idx`
-
-returns the altered FluxMap
--}
-updateFluxMap :: Flux -> FluxID -> FluxMap -> FluxMap
-updateFluxMap flux (fluxname, idx) fluxmap = fluxmap'
-  where
-    fluxesM = Map.lookup fluxname fluxmap
-    fluxes = fromMaybe Map.empty fluxesM
-    fluxes' = Map.alter (const $ Just flux) idx fluxes
-    fluxmap' = Map.alter (const $ Just fluxes') fluxname fluxmap
-
-findFlux :: String -> Int -> FluxMap -> Maybe Flux
-findFlux fluxname idx fluxmap = fluxM
-  where
-    fluxes = Map.lookup fluxname fluxmap
-    fluxM = join $ Map.lookup idx <$> fluxes
+updateFluxMap :: Flux -> FluxMap -> FluxMap
+updateFluxMap flux m = m ++ [flux]
+  
+-- findFlux :: String -> Int -> FluxMap -> Maybe Flux
+-- findFlux fluxname idx fluxmap = fluxM
+--   where
+--     fluxes = Map.lookup fluxname fluxmap
+--     fluxM = join $ Map.lookup idx <$> fluxes
 
 fluxAPI :: ASCII
 fluxAPI = ascii ",iifsiffffffffffffff"
@@ -414,7 +399,7 @@ toFluxMessage m = fluxm
     d = descriptor datems
     fluxm = case d == fluxAPI of
       True ->
-        Just $ FluxMessage (posx', posy', posz') (width', height', depth') (angle', rotx', roty', rotz') (red', green', blue') life' (flux,idx) ts
+        Just $ FluxMessage (posx', posy', posz') (width', height', depth') (angle', rotx', roty', rotz') (red', green', blue') life' flux ts
         where
           (_:_:_:dflux:didx:dlife:dposx:dposy:dposz:dwidth:dheight:ddepth:drotx:droty:drotz:dangle:dred:dgreen:[dblue]) = datems
           life' = fromJust $ datum_floating dlife
@@ -447,42 +432,24 @@ processFluxMessage FluxMessage{fpos=pos'@(x,y,z),
                                fsiz=siz'@(w,h,d),
                                frot=rot'@(angle,phi,psi,xsi),
                                fcol=col'@(r,g,b),
-                               flife=l, fpath=(fluxname,idx), ftime=ts} = do
+                               fname=fluxname,
+                               flife=l, ftime=ts} = do
   state <- get
   let fluxmap = stateFluxes state
-      fluxM = findFlux fluxname idx fluxmap
   -- create DisplayList if this is a new Flux
-  (shape', postween, siztween, rottween, coltween) <- liftIO $ case fluxM of
-    Nothing -> do
+  (shape', postween, siztween, rottween, coltween) <- liftIO $ do
       gear <- makeGear 1   4 1   20 0.7 (GL.Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1)
       return (gear,
               (pos', pos'),
               (siz', siz'),
               (rot', rot'),
               (col', col'))
-    Just Flux{shape=shape',
-              pos=(posfrom,posto),
-              siz=(sizfrom,sizto),
-              rot=(rotfrom,rotto),
-              col=(colfrom,colto),              
-              spawned=t'} -> return (shape',
-                                     (pos', pos'),
-                                     (siz', siz'),
-                                     (rot', rot'),
-                                     (col', col')
-                                      )
-      where
-        t = realToFrac $ diffUTCTime ts t'
-        posnow = tween3 Linear t l posfrom posto
-        siznow = tween3 Linear t l sizfrom sizto
-        rotnow = tween4 Linear t l rotfrom rotto
-        colnow = tween3 Linear t l colfrom colto        
 
   -- create a new Flux with updated values
   let flux = Flux shape' postween siztween rottween coltween Linear (Just l) fluxname ts
   put state {
     -- FIXME: continue with lifetime reduction an removal of _dead_ fluxes, like this, fluxes live forever
-    stateFluxes = updateFluxMap flux (fluxname, idx) fluxmap
+    stateFluxes = updateFluxMap flux fluxmap
             }
 
 decayFluxMap :: Demo ()
@@ -490,15 +457,15 @@ decayFluxMap = do
   state <- get
   now <- liftIO getCurrentTime
   let fluxmap = stateFluxes state
-      fluxmap' = Map.map (decayFluxes now) fluxmap
-      fluxmap'' = Map.map clearGone fluxmap'
+      fluxmap' = map (decayFlux now) fluxmap
+      fluxmap'' = clearGone fluxmap'
 
   put state {
     stateFluxes = fluxmap''
             }
 
-clearGone :: Map.Map Int Flux -> Map.Map Int Flux
-clearGone = Map.filter isGone
+clearGone :: FluxMap -> FluxMap
+clearGone = filter isGone
   where
     isGone Flux{life=Nothing} = False
     isGone _ = True
@@ -642,8 +609,8 @@ adjustWindow = do
         GL.loadIdentity
         GL.translate (GL.Vector3 0 0 (negate $ realToFrac zDist) :: GL.Vector3 GL.GLfloat)
 
-flattenFluxes :: FluxMap -> [Flux]
-flattenFluxes fm = concat $ Map.elems $ Map.map Map.elems fm
+-- flattenFluxes :: FluxMap -> [Flux]
+-- flattenFluxes fm = concat $ Map.elems $ Map.map Map.elems fm
 
 linear :: Double -> Double -> Double -> Double -> Double
 linear start end time timescale = change + start
@@ -686,7 +653,7 @@ draw = do
     env   <- ask
     state <- get
     let fluxmap = stateFluxes state
-        flatfluxes = flattenFluxes fluxmap
+        flatfluxes = fluxmap
         xa = stateXAngle state
         ya = stateYAngle state
         za = stateZAngle state

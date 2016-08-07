@@ -29,7 +29,7 @@ executable             Daumenkino
   main-is:             Main.hs
   other-moduleS:
     Gear
-  build-depends:       base >=4.7 && <5, tidal >=0.8 && <0.9, hosc,
+  build-depends:       base >=4.7 && <5, tidal >= 0.9 && <0.10, hosc,
                        containers, colour, GLFW-b, OpenGL, transformers, stm, pretty, mtl, time, bytestring,
                        linear 
   default-language:    Haskell2010                     
@@ -41,6 +41,8 @@ library
                      Graphics.Daumenkino.Prim
                      Graphics.Daumenkino.Pattern
                      Graphics.Daumenkino.Strategies
+                     Graphics.Daumenkino.Space
+                     Graphics.Daumenkino.Tidal
 
   -- Modules included in this library but not exported.
   other-modules:
@@ -50,6 +52,6 @@ library
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
-  build-depends:       base >=4.7 && <5, tidal >=0.8 && <0.9, hosc, containers, colour, GLFW-b, OpenGL, time
+  build-depends:       base >=4.7 && <5, tidal >=0.9 && <0.10, hosc, containers, colour, GLFW-b, OpenGL, time
 
   default-language:    Haskell2010

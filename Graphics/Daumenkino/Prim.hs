@@ -43,7 +43,7 @@ primSlang = OscSlang {
              ]
   }
 
-primBackend :: String -> Int -> IO (Backend a)
+primBackend :: String -> Int -> IO Backend
 primBackend host port = do
   s <- makeConnection host port primSlang
   return $ Backend s (\_ _ _ -> return ())
