@@ -1,13 +1,10 @@
 module Graphics.Daumenkino.Params where
 
-import Sound.Tidal.Params (make', pI, pF, pS)
+import Sound.Tidal.Params (pI, pF, pS)
 import Sound.Tidal.Stream
 import Sound.Tidal.Pattern
 import qualified Data.Map as Map
 
-shader :: Pattern String -> OscPattern
-shader = make' string shader_p
-shader_p = S "shader" Nothing
 
 (shader, shader_p) = pS "shader" Nothing
 
@@ -38,4 +35,3 @@ shader_p = S "shader" Nothing
 (origin_x, origin_x_p) = pI "origin_x" (Just 0)
 (origin_y, origin_y_p) = pI "origin_y" (Just 0)
 (origin_z, origin_z_p) = pI "origin_z" (Just 0)
-
