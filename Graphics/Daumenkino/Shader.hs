@@ -15,7 +15,7 @@ import Graphics.Daumenkino.Params
 shaderSlang = OscSlang {
   path = "/shader",
   timestamp = MessageStamp,
-  namedParams = False,
+  namedParams = True,
   preamble = []
   }
 

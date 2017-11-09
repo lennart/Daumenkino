@@ -6,6 +6,7 @@ import Sound.Tidal.Pattern
 import qualified Data.Map as Map
 
 
+(tag, tag_p) = pS "tag" (Just "p")
 (shader, shader_p) = pS "shader" Nothing
 
 (red, red_p) = pF "red" (Just 1)
