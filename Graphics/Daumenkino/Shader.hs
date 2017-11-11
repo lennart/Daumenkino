@@ -47,7 +47,7 @@ shaderShape = Shape {
     level_p
     ],
   cpsStamp = True,
-  latency = 0.04
+  latency = 0.3
   }
 
 shaderBackend port = do
