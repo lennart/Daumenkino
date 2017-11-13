@@ -6,8 +6,11 @@ import Sound.Tidal.Pattern
 import qualified Data.Map as Map
 
 
+style name = fst $ pS name Nothing
+
 (tag, tag_p) = pS "tag" (Just "p")
-(shader, shader_p) = pS "shader" Nothing
+(text, text_p) = pS "text" Nothing
+(order, order_p) = pI "order" (Just 0)
 
 (red, red_p) = pF "red" (Just 1)
 (green, green_p) = pF "green" (Just 1)

@@ -23,7 +23,7 @@ shaderShape :: Shape
 shaderShape = Shape {
   params = [
     dur_p,
-    shader_p,
+    text_p,
     red_p,
     green_p,
     blue_p,
