@@ -1,41 +1,40 @@
 module Graphics.Daumenkino.Params where
 
 import Sound.Tidal.Params (pI, pF, pS)
-import Sound.Tidal.Stream
-import Sound.Tidal.Pattern
-import qualified Data.Map as Map
 
+style name = pS name
 
-style name = fst $ pS name Nothing
+ctx = pS "ctx"
+tag = pS "tag"
+text = pS "text"
+order = pI "order"
+rows = pI "rows"
+cols = pI "cols"
 
-(tag, tag_p) = pS "tag" (Just "p")
-(text, text_p) = pS "text" Nothing
-(order, order_p) = pI "order" (Just 0)
+red = pF "red"
+green = pF "green"
+blue = pF "blue"
 
-(red, red_p) = pF "red" (Just 1)
-(green, green_p) = pF "green" (Just 1)
-(blue, blue_p) = pF "blue" (Just 1)
+alpha = pF "alpha"
 
-(alpha, alpha_p) = pF "alpha" (Just 1)
+x = pF "x"
+y = pF "y"
+z = pF "z"
+w = pF "w"
 
-(x, x_p) = pF "x" (Just 0.5)
-(y, y_p) = pF "y" (Just 0.5)
-(z, z_p) = pF "z" (Just 0)
-(w, w_p) = pF "w" (Just 1)
+width = pF "width"
+height = pF "height"
 
-(width, width_p) = pF "width" (Just 1)
-(height, height_p) = pF "height" (Just 1)
+srcblend = pS "srcblend"
+blend = pS "blend"
+blendeq = pS "blendeq"
 
-(srcblend, srcblend_p) = pS "srcblend" (Just "a")
-(blend, blend_p) = pS "blend" (Just "x")
-(blendeq, blendeq_p) = pS "blendeq" (Just "a")
+level = pI "level"
 
-(level, level_p) = pI "level" (Just 0)
+rot_x = pF "rot_x"
+rot_y = pI "rot_y"
+rot_z = pI "rot_z"
 
-(rot_x, rot_x_p) = pF "rot_x" (Just 0)
-(rot_y, rot_y_p) = pI "rot_y" (Just 0)
-(rot_z, rot_z_p) = pI "rot_z" (Just 0)
-
-(origin_x, origin_x_p) = pI "origin_x" (Just 0)
-(origin_y, origin_y_p) = pI "origin_y" (Just 0)
-(origin_z, origin_z_p) = pI "origin_z" (Just 0)
+origin_x = pI "origin_x"
+origin_y = pI "origin_y"
+origin_z = pI "origin_z"

@@ -27,14 +27,15 @@ cabal-version:       >=1.10
 
 library
   -- Modules exported by the library.
-  exposed-modules:   Graphics.Daumenkino.Context
-                     Graphics.Daumenkino.Colors
+  exposed-modules:
+                  Graphics.Daumenkino.Context
+--                      Graphics.Daumenkino.Colors
 
 
   -- Modules included in this library but not exported.
   other-modules:
-                     Graphics.Daumenkino.Params
-                     Graphics.Daumenkino.Shader
+                Graphics.Daumenkino.Params
+                --Graphics.Daumenkino.Shader
 
 
   -- LANGUAGE extensions used by modules in this package.
