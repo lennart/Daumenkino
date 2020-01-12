@@ -2,8 +2,8 @@ module Graphics.Daumenkino.Params where
 
 import Sound.Tidal.Params (pI, pF, pS)
 
-style name = pS name
-
+style = pS "style"
+frag = pS "frag"
 ctx = pS "ctx"
 tag = pS "tag"
 text = pS "text"
